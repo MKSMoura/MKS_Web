@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+{% block title %}Configurações{% endblock %}
+{% block header_title %}Configurações <span class="font-bold text-sky-400">da Empresa</span>{% endblock %}
+{% block header_sub %}Dados cadastrais que aparecem no sistema{% endblock %}
+
+{% block head %}
+<style>
+  main { overflow-y: auto !important; }
+
+  /* Campo padrão */
+  .f-group { display:flex; flex-direction:column; gap:5px; }
+  .f-label { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.1em; color:#475569; }
+  .f-inp   { background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); border-radius:12px;
+             color:#f8fafc; font-family:inherit; font-size:.875rem; padding:10px 14px;
+             outline:none; width:100%; transition:border-color .2s; }
+  .f-inp:focus  { border-color:rgba(56,189,248,0.5); }
+
+  /* Grid desktop */
+  .row-2  { display:grid; grid-template-columns:1fr 1fr;     gap:16px; }
+  .row-3  { display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; }
+  .row-4  { display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:16px; }
+  .row-cep { display:grid; grid-template-columns:160px 1fr; gap:16px; }
+  .row-end { display:grid; grid-template-columns:1fr 120px 160px; gap:16px; }
+
+  /* Mobile: tudo em coluna */
+  @media (max-width:768px) {
+    .row-2, .row-3, .row-4, .row-cep, .row-end { grid-template-columns:1fr !important; }
+  }
+  .card-sec { margin-bottom:20px; }
+  .sec-title { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.12em; color:#38bdf8; margin-bottom:14px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<form method="post" style="max-width:960px;margin:0 auto;">
+
+  <!-- Identificação -->
+  <div class="glass rounded-[2rem] p-7 card-sec">
+    <p class="sec-title">🏢 Identificação</p>
+
+    <!-- Linha 1: Razão Social · Nome Fantasia -->
+    <div class="row-2" style="margin-bottom:14px;">
+      <div class="f-group">
+        <label class="f-label">Razão Social</label>
+        <input class="f-inp" type="text" name="nome" value="{{ emp.nome or '' }}" placeholder="Nome completo / Razão Social">
+      </div>
+      <div class="f-group">
+        <label class="f-label">Nome Fantasia</label>
+        <input class="f-inp" type="text" name="nome_fantasia" value="{{ emp.nome_fantasia or '' }}" placeholder="Como aparece no sistema">
+      </div>
+    </div>
+
+    <!-- Linha 2: CNPJ · IE · IM -->
+    <div class="row-3">
+      <div class="f-group">
+        <label class="f-label">CNPJ</label>
+        <input class="f-inp" type="text" name="cnpj" value="{{ emp.cnpj | fmt_cnpj if emp.cnpj else '' }}" placeholder="00.000.000/0000-00" maxlength="18">
+      </div>
+      <div class="f-group">
+        <label class="f-label">Inscrição Estadual</label>
+        <input class="f-inp" type="text" name="ie" value="{{ emp.ie or '' }}" placeholder="IE">
+      </div>
+      <div class="f-group">
+        <label class="f-label">Inscrição Municipal</label>
+        <input class="f-inp" type="text" name="im" value="{{ emp.im or '' }}" placeholder="IM">
+      </div>
+    </div>
+  </div>
+
+  <!-- Contato -->
+  <div class="glass rounded-[2rem] p-7 card-sec">
+    <p class="sec-title">📞 Contato</p>
+    <div class="row-4">
+      <div class="f-group">
+        <label class="f-label">E-mail</label>
+        <input class="f-inp" type="text" name="email" value="{{ emp.email or '' }}" placeholder="empresa@dominio.com">
+      </div>
+      <div class="f-group">
+        <label class="f-label">Site</label>
+        <input class="f-inp" type="text" name="site" value="{{ emp.site or '' }}" placeholder="www.empresa.com.br">
+      </div>
+      <div class="f-group">
+        <label class="f-label">Telefone</label>
+        <input class="f-inp" type="text" name="telefone" value="{{ emp.telefone | fmt_tel if emp.telefone else '' }}" placeholder="(00) 0000-0000">
+      </div>
+      <div class="f-group">
+        <label class="f-label">Celular / WhatsApp</label>
+        <input class="f-inp" type="text" name="celular" value="{{ emp.celular | fmt_tel if emp.celular else '' }}" placeholder="(00) 00000-0000">
+      </div>
+    </div>
+  </div>
+
+  <!-- Endereço -->
+  <div class="glass rounded-[2rem] p-7 card-sec">
+    <p class="sec-title">📍 Endereço</p>
+
+    <!-- Linha 1: CEP + Rua -->
+    <div class="row-cep" style="margin-bottom:14px;">
+      <div class="f-group">
+        <label class="f-label">CEP</label>
+        <input class="f-inp" type="text" name="cep" id="cep-emp"
+               value="{{ emp.cep | fmt_cep if emp.cep else '' }}"
+               placeholder="00000-000" maxlength="9"
+               oninput="buscarCep(this.value)">
+      </div>
+      <div class="f-group">
+        <label class="f-label">Rua / Logradouro</label>
+        <input class="f-inp" type="text" name="rua" id="f-rua" value="{{ emp.rua or '' }}">
+      </div>
+    </div>
+
+    <!-- Linha 2: Número · Complemento · Bairro -->
+    <div class="row-3" style="margin-bottom:14px;">
+      <div class="f-group">
+        <label class="f-label">Número</label>
+        <input class="f-inp" type="text" name="numero" id="f-num" value="{{ emp.numero or '' }}">
+      </div>
+      <div class="f-group">
+        <label class="f-label">Complemento</label>
+        <input class="f-inp" type="text" name="complemento" value="{{ emp.complemento or '' }}" placeholder="Sala, Andar...">
+      </div>
+      <div class="f-group">
+        <label class="f-label">Bairro</label>
+        <input class="f-inp" type="text" name="bairro" id="f-bairro" value="{{ emp.bairro or '' }}">
+      </div>
+    </div>
+
+    <!-- Linha 3: Cidade · Estado -->
+    <div class="row-end">
+      <div class="f-group">
+        <label class="f-label">Cidade</label>
+        <input class="f-inp" type="text" name="cidade" id="f-cidade" value="{{ emp.cidade or '' }}">
+      </div>
+      <div class="f-group">
+        <label class="f-label">Estado</label>
+        <select name="estado" class="f-inp" style="cursor:pointer;">
+          <option value="">UF</option>
+          {% for uf in ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'] %}
+          <option value="{{ uf }}" {{ 'selected' if emp.estado == uf }}>{{ uf }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <!-- coluna vazia para manter alinhamento no row-end -->
+      <div></div>
+    </div>
+  </div>
+
+  <!-- Observações -->
+  <div class="glass rounded-[2rem] p-7 card-sec">
+    <p class="sec-title">📝 Observações</p>
+    <textarea name="observacoes" rows="3" placeholder="Informações adicionais sobre a empresa..."
+              class="f-inp" style="resize:none;width:100%;">{{ emp.observacoes or '' }}</textarea>
+  </div>
+
+  <!-- Salvar -->
+  <div style="display:flex;justify-content:flex-end;padding-bottom:40px;">
+    <button type="submit"
+            style="background:rgba(56,189,248,0.15);border:1px solid rgba(56,189,248,0.35);color:#38bdf8;font-family:inherit;font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;padding:12px 32px;border-radius:14px;cursor:pointer;transition:all .2s;box-shadow:0 0 20px rgba(56,189,248,0.1);"
+            onmouseover="this.style.background='rgba(56,189,248,0.25)'"
+            onmouseout="this.style.background='rgba(56,189,248,0.15)'">
+      💾 Salvar Configurações
+    </button>
+  </div>
+
+</form>
+
+<script>
+function buscarCep(v) {
+  const cep = v.replace(/\D/g,'');
+  if (cep.length !== 8) return;
+  fetch('https://viacep.com.br/ws/'+cep+'/json/')
+    .then(r=>r.json()).then(d=>{
+      if (!d.erro) {
+        document.getElementById('f-rua').value    = d.logradouro||'';
+        document.getElementById('f-bairro').value = d.bairro||'';
+        document.getElementById('f-cidade').value = d.localidade||'';
+        const sel = document.querySelector('[name=estado]');
+        if (sel) [...sel.options].forEach(o=>{ o.selected = o.value===d.uf; });
+        document.getElementById('f-num').focus();
+      }
+    }).catch(()=>{});
+}
+</script>
+{% endblock %}

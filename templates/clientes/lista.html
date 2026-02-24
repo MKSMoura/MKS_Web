@@ -145,13 +145,12 @@ function fmtTel(t) {
 }
 
 function buscarLocal(q) {
-  if (!_cache) return [];
-  const qu = q.toUpperCase();
-  return _cache.filter(c =>
-    (c.nome||'').toUpperCase().includes(qu) ||
-    (c.fantasia||'').toUpperCase().includes(qu) ||
-    (c.doc||'').includes(qu) ||
-    (c.doc||'').replace(/\D/g,'').includes(qu.replace(/\D/g,''))
+  const qu = (q||'').trim().toUpperCase();
+  if (!_cache || qu.length < 2) return null; // null = sem busca ativa
+  return _cache.filter(item =>
+    (item.nome||'').toUpperCase().includes(qu) ||
+    (item.fantasia||'').toUpperCase().includes(qu) ||
+    (item.doc||'').replace(/\D/g,'').includes(qu.replace(/\D/g,''))
   ).slice(0, 80);
 }
 
@@ -159,9 +158,9 @@ function renderResultados(lista, q) {
   const tbody = document.getElementById('tbody-desktop');
   const cards = document.getElementById('cards-mobile');
 
-  if (!q || q.length < 2) {
+  if (lista === null || !q || q.trim().length < 2) {
     tbody.innerHTML = '<tr><td colspan="5" class="p-20 text-center opacity-30 italic text-[10px] uppercase tracking-widest">Digite para buscar clientes</td></tr>';
-    cards.innerHTML = '';
+    cards.innerHTML = '<p style="padding:60px 20px;text-align:center;opacity:.3;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;">Digite para buscar</p>';
     return;
   }
   if (!lista.length) {
@@ -212,15 +211,15 @@ inp.addEventListener('input', function() {
   clearTimeout(_timer);
   const q = this.value.trim();
   _q = q;
-  if (q.length < 2) { renderResultados([], q); return; }
+  if (q.length < 2) { renderResultados(null, q); status.textContent=''; return; }
   status.textContent = '...';
   _timer = setTimeout(async () => {
     await carregarCache();
-    if (_q !== q) return; // query mudou enquanto carregava
+    if (_q !== q) return;
     const res = buscarLocal(q);
-    status.textContent = res.length ? res.length+' result.' : '';
+    status.textContent = res && res.length ? res.length+' result.' : '';
     renderResultados(res, q);
-  }, 300); // 300ms — rápido pois é local
+  }, 300);
 });
 
 // Restaurar busca salva ao voltar
@@ -230,10 +229,10 @@ window.addEventListener('DOMContentLoaded', async () => {
   if (saved.length >= 2) {
     inp.value = saved;
     const res = buscarLocal(saved);
-    status.textContent = res.length ? res.length+' result.' : '';
+    status.textContent = res && res.length ? res.length+' result.' : '';
     renderResultados(res, saved);
   } else {
-    renderResultados([], '');
+    renderResultados(null, '');
   }
   inp.focus();
   inp.setSelectionRange(inp.value.length, inp.value.length);

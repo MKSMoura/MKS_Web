@@ -1,61 +1,209 @@
 {% extends "base.html" %}
 {% block title %}Dashboard{% endblock %}
-{% block header_title %}Distribuidora <span class="font-bold text-sky-400">Vision</span>{% endblock %}
-{% block header_sub %}Visão geral do sistema e performance.{% endblock %}
+{% block header_title %}{{ emp.nome_fantasia or emp.nome or 'Sistema' }}{% endblock %}
+{% block header_sub %}Visão geral do sistema{% endblock %}
 
 {% block head %}
 <style>
   main { overflow-y: auto !important; }
+  .kcard {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 18px;
+    padding: 20px 22px;
+    display: flex; flex-direction: column; gap: 5px;
+  }
+  .kcard.sky    { border-color:rgba(56,189,248,.25); background:rgba(56,189,248,.04); }
+  .kcard.green  { border-color:rgba(74,222,128,.25); background:rgba(74,222,128,.04); }
+  .kcard.red    { border-color:rgba(248,113,113,.25);background:rgba(248,113,113,.04); }
+  .kcard.amber  { border-color:rgba(251,146,60,.25); background:rgba(251,146,60,.04); }
+  .knum   { font-family:'Orbitron',sans-serif; font-size:1.8rem; font-weight:700; line-height:1.1; }
+  .klabel { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.1em; color:#475569; }
+  .ksub   { font-size:11px; color:#475569; }
+
+  .chart-box { background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.06); border-radius:18px; padding:20px 22px; }
+  .chart-ttl { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.1em; color:#475569; margin-bottom:16px; }
+  .bars { display:flex; align-items:flex-end; gap:6px; }
+  .bgrp { flex:1; display:flex; flex-direction:column; align-items:center; gap:4px; }
+  .bar  { width:100%; border-radius:5px 5px 0 0; transition:height .7s cubic-bezier(.4,0,.2,1); min-height:3px; cursor:default; position:relative; }
+  .bar:hover::after { content:attr(data-tip); position:absolute; bottom:calc(100% + 5px); left:50%; transform:translateX(-50%);
+    background:rgba(10,20,40,.97); border:1px solid rgba(56,189,248,.2); color:#e2e8f0;
+    font-size:9px; font-weight:700; padding:4px 9px; border-radius:6px;
+    white-space:nowrap; pointer-events:none; z-index:20; }
+  .blbl { font-size:7.5px; color:#334155; font-weight:700; text-align:center; text-transform:uppercase; letter-spacing:.04em; }
+  .bval { font-size:8.5px; color:#64748b; font-weight:700; text-align:center; }
+
+  @media (max-width:768px) {
+    .g4 { grid-template-columns:repeat(2,1fr) !important; }
+    .g2 { grid-template-columns:1fr !important; }
+  }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="grid grid-cols-4 gap-6 mb-8">
-  <div class="glass p-6 rounded-[2rem] glass-hover">
-    <p class="text-[10px] uppercase tracking-widest text-slate-500 mb-2 font-bold">Clientes PF</p>
-    <h3 class="text-3xl font-orbitron text-white">{{ total_pf }}</h3>
-    <p class="text-xs text-sky-400 mt-2">Pessoas Físicas</p>
+{% set s = stats %}
+
+<!-- Linha 1: 4 KPIs -->
+<div class="g4" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px;">
+
+  <div class="kcard sky">
+    <span class="klabel">Total Clientes</span>
+    <span class="knum" style="color:#38bdf8;">{{ s.total_pf + s.total_pj }}</span>
+    <span class="ksub">{{ s.total_pf }} PF · {{ s.total_pj }} PJ</span>
   </div>
-  <div class="glass p-6 rounded-[2rem] glass-hover border-l-2 border-l-sky-500">
-    <p class="text-[10px] uppercase tracking-widest text-slate-500 mb-2 font-bold">Clientes PJ</p>
-    <h3 class="text-3xl font-orbitron text-white">{{ total_pj }}</h3>
-    <p class="text-xs text-sky-400 mt-2">Pessoas Jurídicas</p>
+
+  <div class="kcard">
+    <span class="klabel">Produtos ativos</span>
+    <span class="knum" style="color:#e2e8f0;">{{ s.total_produtos }}</span>
+    {% if s.estoque_baixo > 0 %}
+    <span class="ksub" style="color:#fb923c;">⚠ {{ s.estoque_baixo }} em alerta</span>
+    {% else %}
+    <span class="ksub" style="color:#4ade80;">✓ Estoque OK</span>
+    {% endif %}
   </div>
-  <div class="glass p-6 rounded-[2rem] glass-hover">
-    <p class="text-[10px] uppercase tracking-widest text-slate-500 mb-2 font-bold">Total Clientes</p>
-    <h3 class="text-3xl font-orbitron text-white">{{ total_pf + total_pj }}</h3>
-    <p class="text-xs text-slate-400 mt-2">Base cadastrada</p>
+
+  <div class="kcard">
+    <span class="klabel">Pedidos</span>
+    <span class="knum" style="color:#e2e8f0;">{{ s.total_pedidos }}</span>
+    {% if s.pedidos_abertos > 0 %}
+    <span class="ksub" style="color:#fb923c;">{{ s.pedidos_abertos }} abertos</span>
+    {% else %}
+    <span class="ksub" style="color:#4ade80;">Todos faturados</span>
+    {% endif %}
   </div>
-  <div class="glass p-6 rounded-[2rem] glass-hover border-l-2 border-l-green-500">
-    <p class="text-[10px] uppercase tracking-widest text-slate-500 mb-2 font-bold">Status</p>
-    <h3 class="text-3xl font-orbitron text-green-400">ON</h3>
-    <p class="text-xs text-green-400 mt-2">Sistema operacional</p>
+
+  {% set saldo = s.a_receber - s.a_pagar %}
+  <div class="kcard {% if saldo >= 0 %}green{% else %}red{% endif %}">
+    <span class="klabel">Saldo projetado</span>
+    <span class="knum" style="color:{% if saldo >= 0 %}#4ade80{% else %}#f87171{% endif %};font-size:1.3rem;">
+      R$&#8239;{{ "%.0f"|format(saldo|abs) }}
+    </span>
+    <span class="ksub" style="color:{% if saldo >= 0 %}#4ade80{% else %}#f87171{% endif %};">
+      {% if saldo >= 0 %}Positivo{% else %}Negativo{% endif %}
+    </span>
   </div>
+
 </div>
 
-<div class="glass p-10 rounded-[3rem]">
-  <div class="flex justify-between items-center mb-10">
-    <h4 class="font-bold text-lg uppercase tracking-tighter">Acesso Rápido</h4>
+<!-- Linha 2: 4 KPIs financeiro + alerta -->
+<div class="g4" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;">
+
+  <div class="kcard green">
+    <span class="klabel">A Receber</span>
+    <span class="knum" style="color:#4ade80;font-size:1.3rem;">R$&#8239;{{ "%.0f"|format(s.a_receber) }}</span>
+    <span class="ksub">Em aberto</span>
   </div>
-  <div class="grid grid-cols-2 gap-6">
-    <a href="{{ url_for('pf_novo') }}" class="glass glass-hover p-8 rounded-[2rem] flex items-center gap-6 group">
-      <div class="w-14 h-14 bg-sky-500/10 rounded-2xl flex items-center justify-center border border-sky-500/20 group-hover:bg-sky-500/20 transition-all">
-        <svg class="w-7 h-7 text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/></svg>
+
+  <div class="kcard red">
+    <span class="klabel">A Pagar</span>
+    <span class="knum" style="color:#f87171;font-size:1.3rem;">R$&#8239;{{ "%.0f"|format(s.a_pagar) }}</span>
+    <span class="ksub">Em aberto</span>
+  </div>
+
+  <div class="kcard {% if s.estoque_baixo > 0 %}amber{% endif %}">
+    <span class="klabel">Estoque baixo</span>
+    <span class="knum" style="color:{% if s.estoque_baixo > 0 %}#fb923c{% else %}#4ade80{% endif %};">
+      {{ s.estoque_baixo }}
+    </span>
+    <span class="ksub">Produtos abaixo do mínimo</span>
+  </div>
+
+  <div class="kcard">
+    <span class="klabel">Pedidos abertos</span>
+    <span class="knum" style="color:{% if s.pedidos_abertos > 0 %}#fb923c{% else %}#4ade80{% endif %};">
+      {{ s.pedidos_abertos }}
+    </span>
+    <span class="ksub">Aguardando faturamento</span>
+  </div>
+
+</div>
+
+<!-- Gráficos -->
+<div class="g2" style="display:grid;grid-template-columns:2fr 1fr;gap:14px;margin-bottom:16px;">
+
+  <!-- Pedidos por mês (qtd) -->
+  <div class="chart-box">
+    <p class="chart-ttl">📦 Pedidos por mês — últimos {{ s.pedidos_meses|length }} meses</p>
+    {% if s.pedidos_meses %}
+      {% set max_q = namespace(v=1) %}
+      {% for m in s.pedidos_meses %}{% if (m.qtd or 0) > max_q.v %}{% set max_q.v = m.qtd %}{% endif %}{% endfor %}
+      <div class="bars" style="height:130px;">
+        {% for m in s.pedidos_meses %}
+          {% set pct = ((m.qtd or 0) / max_q.v * 100) %}
+          {% set lbl = m.mes[5:7] + '/' + m.mes[2:4] %}
+          <div class="bgrp">
+            <span class="bval">{{ m.qtd }}</span>
+            <div class="bar" style="height:{{ pct }}%;background:linear-gradient(180deg,rgba(56,189,248,.85),rgba(56,189,248,.25));"
+                 data-tip="{{ lbl }}: {{ m.qtd }} pedidos"></div>
+            <span class="blbl">{{ lbl }}</span>
+          </div>
+        {% endfor %}
       </div>
-      <div>
-        <p class="text-[10px] text-slate-500 uppercase tracking-widest font-bold mb-1">Novo</p>
-        <p class="font-bold text-lg">Cliente PF</p>
+    {% else %}
+      <div style="height:130px;display:flex;align-items:center;justify-content:center;opacity:.25;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;">Sem dados</div>
+    {% endif %}
+  </div>
+
+  <!-- Financeiro (barras A Receber x A Pagar) -->
+  <div class="chart-box">
+    <p class="chart-ttl">💰 Financeiro em aberto</p>
+    {% set max_fin = [s.a_receber, s.a_pagar, 1] | max %}
+    <div class="bars" style="height:130px;gap:18px;padding:0 12px;">
+      <div class="bgrp">
+        <span class="bval" style="color:#4ade80;font-size:8px;">R$&#8239;{{ "%.0f"|format(s.a_receber) }}</span>
+        <div class="bar" style="height:{{ (s.a_receber/max_fin*100)|round|int }}%;background:linear-gradient(180deg,rgba(74,222,128,.8),rgba(74,222,128,.2));"
+             data-tip="A Receber: R$ {{ '%.2f'|format(s.a_receber)|replace('.',',') }}"></div>
+        <span class="blbl" style="color:#4ade80;">Receber</span>
       </div>
-    </a>
-    <a href="{{ url_for('pj_novo') }}" class="glass glass-hover p-8 rounded-[2rem] flex items-center gap-6 group">
-      <div class="w-14 h-14 bg-indigo-500/10 rounded-2xl flex items-center justify-center border border-indigo-500/20 group-hover:bg-indigo-500/20 transition-all">
-        <svg class="w-7 h-7 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+      <div class="bgrp">
+        <span class="bval" style="color:#f87171;font-size:8px;">R$&#8239;{{ "%.0f"|format(s.a_pagar) }}</span>
+        <div class="bar" style="height:{{ (s.a_pagar/max_fin*100)|round|int }}%;background:linear-gradient(180deg,rgba(248,113,113,.8),rgba(248,113,113,.2));"
+             data-tip="A Pagar: R$ {{ '%.2f'|format(s.a_pagar)|replace('.',',') }}"></div>
+        <span class="blbl" style="color:#f87171;">Pagar</span>
       </div>
-      <div>
-        <p class="text-[10px] text-slate-500 uppercase tracking-widest font-bold mb-1">Novo</p>
-        <p class="font-bold text-lg">Cliente PJ</p>
+    </div>
+    <div style="margin-top:14px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.06);display:flex;justify-content:space-between;align-items:center;">
+      <span class="klabel">Saldo</span>
+      {% set saldo = s.a_receber - s.a_pagar %}
+      <span style="font-family:'Orbitron',sans-serif;font-size:.95rem;font-weight:700;color:{% if saldo>=0 %}#4ade80{% else %}#f87171{% endif %};">
+        R$&#8239;{{ "%.0f"|format(saldo|abs) }}
+      </span>
+    </div>
+  </div>
+
+</div>
+
+<!-- Faturamento por mês (R$) -->
+{% if s.pedidos_meses %}
+<div class="chart-box" style="margin-bottom:16px;">
+  <p class="chart-ttl">💵 Faturamento por mês (R$)</p>
+  {% set max_f = namespace(v=1) %}
+  {% for m in s.pedidos_meses %}{% if (m.total or 0) > max_f.v %}{% set max_f.v = m.total %}{% endif %}{% endfor %}
+  <div class="bars" style="height:140px;gap:10px;">
+    {% for m in s.pedidos_meses %}
+      {% set pct = ((m.total or 0) / max_f.v * 100) %}
+      {% set lbl = m.mes[5:7] + '/' + m.mes[2:4] %}
+      {% set fat = "R$ " + "%.0f"|format(m.total or 0) %}
+      <div class="bgrp">
+        <span class="bval" style="font-size:7.5px;">{{ fat }}</span>
+        <div class="bar" style="height:{{ pct }}%;background:linear-gradient(180deg,rgba(99,102,241,.85),rgba(99,102,241,.25));"
+             data-tip="{{ lbl }}: {{ fat }}"></div>
+        <span class="blbl">{{ lbl }}</span>
       </div>
-    </a>
+    {% endfor %}
   </div>
 </div>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Animação de entrada das barras
+document.querySelectorAll('.bar').forEach(b => {
+  const h = b.style.height;
+  b.style.height = '0%';
+  requestAnimationFrame(() => requestAnimationFrame(() => { b.style.height = h; }));
+});
+</script>
 {% endblock %}

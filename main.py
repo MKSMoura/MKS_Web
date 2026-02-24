@@ -84,6 +84,30 @@ def init_usuarios():
 
 init_usuarios()
 
+def init_empresa():
+    import os as _os, firebirdsql as _fb
+    from core.database import get_db_path as _gp
+    db_path = _gp("empresa")
+    if not _os.path.exists(db_path):
+        conn = _fb.create_database(host="localhost",database=db_path,user="SYSDBA",password="masterkey",charset="UTF8")
+        cur = conn.cursor()
+        cur.execute("""CREATE TABLE EMPRESA (
+            ID INTEGER NOT NULL PRIMARY KEY,
+            NOME VARCHAR(150), NOME_FANTASIA VARCHAR(150),
+            CNPJ VARCHAR(20), IE VARCHAR(30), IM VARCHAR(30),
+            EMAIL VARCHAR(150), TELEFONE VARCHAR(20), CELULAR VARCHAR(20),
+            CEP VARCHAR(10), RUA VARCHAR(255), NUMERO VARCHAR(20),
+            COMPLEMENTO VARCHAR(100), BAIRRO VARCHAR(100),
+            CIDADE VARCHAR(100), ESTADO VARCHAR(2),
+            SITE VARCHAR(150), OBSERVACOES BLOB SUB_TYPE TEXT,
+            DATA_ATUALIZACAO VARCHAR(30)
+        )""")
+        conn.commit()
+        cur.execute("""INSERT INTO EMPRESA (ID,NOME,NOME_FANTASIA,DATA_ATUALIZACAO)
+            VALUES (1,'Minha Empresa','','2026-01-01 00:00:00')""")
+        conn.commit(); conn.close()
+init_empresa()
+
 # Migração: adicionar TROCAR_SENHA se não existir
 def _migrar_usuarios():
     try:
@@ -523,15 +547,66 @@ def api_update_pj(cid):
 
 @app.route("/")
 def dashboard():
+    import json as _j
+    stats = {}
+    # Clientes
     with get_connection("clientes_pf") as conn:
         cur = conn.cursor()
-        cur.execute("SELECT COUNT(*) AS total FROM clientes_pf")
-        total_pf = cur.fetchone()["total"]
+        cur.execute("SELECT COUNT(*) AS total FROM CLIENTES_PF")
+        stats["total_pf"] = cur.fetchone()["total"]
     with get_connection("clientes_pj") as conn:
         cur = conn.cursor()
-        cur.execute("SELECT COUNT(*) AS total FROM clientes_pj")
-        total_pj = cur.fetchone()["total"]
-    return render_template("dashboard.html", total_pf=total_pf, total_pj=total_pj)
+        cur.execute("SELECT COUNT(*) AS total FROM CLIENTES_PJ")
+        stats["total_pj"] = cur.fetchone()["total"]
+    # Produtos
+    try:
+        with get_connection("produtos") as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT COUNT(*) AS total FROM PRODUTOS WHERE STATUS=\'ativo\'")
+            stats["total_produtos"] = cur.fetchone()["total"]
+            cur.execute("SELECT COUNT(*) AS total FROM PRODUTOS WHERE QTD_ESTOQUE <= ESTOQUE_MINIMO AND STATUS=\'ativo\'")
+            stats["estoque_baixo"] = cur.fetchone()["total"]
+    except Exception:
+        stats["total_produtos"] = 0; stats["estoque_baixo"] = 0
+    # Pedidos — últimos 6 meses (por mês)
+    try:
+        with get_connection("pedidos") as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT COUNT(*) AS total FROM PEDIDOS WHERE STATUS <> \'cancelado\'")
+            stats["total_pedidos"] = cur.fetchone()["total"]
+            cur.execute("SELECT COUNT(*) AS total FROM PEDIDOS WHERE STATUS=\'aberto\'")
+            stats["pedidos_abertos"] = cur.fetchone()["total"]
+            # Pedidos por mês — últimos 6 meses
+            cur.execute("""SELECT SUBSTRING(DATA_PEDIDO FROM 1 FOR 7) AS mes,
+                COUNT(*) AS qtd, SUM(TOTAL) AS total
+                FROM PEDIDOS WHERE STATUS<>\'cancelado\' AND DATA_PEDIDO IS NOT NULL
+                GROUP BY SUBSTRING(DATA_PEDIDO FROM 1 FOR 7)
+                ORDER BY mes DESC ROWS 6""")
+            meses_raw = cur.fetchall()
+            stats["pedidos_meses"] = list(reversed(meses_raw))
+    except Exception:
+        stats["total_pedidos"] = 0; stats["pedidos_abertos"] = 0; stats["pedidos_meses"] = []
+    # Financeiro
+    try:
+        with get_connection("financeiro") as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT COALESCE(SUM(VALOR-VALOR_PAGO),0) AS total FROM CONTAS_RECEBER WHERE STATUS=\'aberto\'")
+            stats["a_receber"] = float(cur.fetchone()["total"] or 0)
+            cur.execute("SELECT COALESCE(SUM(VALOR-VALOR_PAGO),0) AS total FROM CONTAS_PAGAR WHERE STATUS=\'aberto\'")
+            stats["a_pagar"] = float(cur.fetchone()["total"] or 0)
+    except Exception:
+        stats["a_receber"] = 0; stats["a_pagar"] = 0
+    # Empresa
+    try:
+        with get_connection("empresa") as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT NOME, NOME_FANTASIA FROM EMPRESA WHERE ID=1")
+            emp = cur.fetchone() or {}
+    except Exception:
+        emp = {}
+    import datetime as _dt
+    now_fmt = _dt.datetime.now().strftime("%d/%m/%Y")
+    return render_template("dashboard.html", stats=stats, emp=emp, now_fmt=now_fmt)
 
 
 @app.route("/api/clientes-lista")
@@ -1670,6 +1745,50 @@ def pagar_editar(lid):
 # ═══════════════════════════════════════════════════════════
 # RELATÓRIOS
 # ═══════════════════════════════════════════════════════════
+
+@app.route("/configuracoes", methods=["GET","POST"])
+def configuracoes():
+    if session.get("usuario_perfil") != "admin":
+        flash("Sem permissão.","erro"); return redirect(url_for("dashboard"))
+    with get_connection("empresa") as conn:
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM EMPRESA WHERE ID=1")
+        emp = cur.fetchone() or {}
+    if request.method == "POST":
+        f = request.form
+        now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        with get_connection("empresa") as conn:
+            cur = conn.cursor()
+            cur.execute("""UPDATE EMPRESA SET
+                NOME=?,NOME_FANTASIA=?,CNPJ=?,IE=?,IM=?,
+                EMAIL=?,TELEFONE=?,CELULAR=?,
+                CEP=?,RUA=?,NUMERO=?,COMPLEMENTO=?,BAIRRO=?,CIDADE=?,ESTADO=?,
+                SITE=?,OBSERVACOES=?,DATA_ATUALIZACAO=? WHERE ID=1""",
+                (f.get("nome"),f.get("nome_fantasia"),
+                 f.get("cnpj","").replace(".","").replace("/","").replace("-",""),
+                 f.get("ie"),f.get("im"),
+                 f.get("email"),
+                 f.get("telefone","").replace("(","").replace(")","").replace(" ","").replace("-",""),
+                 f.get("celular","").replace("(","").replace(")","").replace(" ","").replace("-",""),
+                 f.get("cep","").replace("-",""),
+                 f.get("rua"),f.get("numero"),f.get("complemento"),
+                 f.get("bairro"),f.get("cidade"),f.get("estado"),
+                 f.get("site"),f.get("observacoes"),now))
+            conn.commit()
+        flash("Configurações salvas!","ok")
+        return redirect(url_for("configuracoes"))
+    return render_template("configuracoes.html", emp=emp)
+
+@app.route("/api/empresa-nome")
+def api_empresa_nome():
+    try:
+        with get_connection("empresa") as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT NOME, NOME_FANTASIA FROM EMPRESA WHERE ID=1")
+            r = cur.fetchone()
+            return jsonify(r or {})
+    except Exception:
+        return jsonify({})
 
 @app.route("/relatorios")
 def relatorios():

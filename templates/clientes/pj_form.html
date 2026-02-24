@@ -1,0 +1,269 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Novo PJ' if modo == 'novo' else (cliente.razao_social if cliente else 'PJ') }}{% endblock %}
+{% block header_title %}
+  {% if cliente and cliente.get('verificado') %}
+    {% set v = cliente.verificado %}
+    {% if v == 'ok' %}<span class="text-[10px] bg-green-500/10 border border-green-500/20 text-green-400 px-3 py-1.5 rounded-lg font-bold uppercase tracking-widest mr-3 align-middle">✓ Receita</span>
+    {% elif v == 'inativo' %}<span class="text-[10px] bg-rose-500/10 border border-rose-500/20 text-rose-400 px-3 py-1.5 rounded-lg font-bold uppercase tracking-widest mr-3 align-middle">⚠ Irregular</span>
+    {% elif v == 'matematico' %}<span class="text-[10px] bg-sky-500/10 border border-sky-500/20 text-sky-400 px-3 py-1.5 rounded-lg font-bold uppercase tracking-widest mr-3 align-middle">✓ Válido</span>
+    {% else %}<span class="text-[10px] bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 px-3 py-1.5 rounded-lg font-bold uppercase tracking-widest mr-3 align-middle animate-pulse">⏳ Pendente</span>
+    {% endif %}
+  {% endif %}
+  <a href="/clientes" class="btn-voltar text-[10px] bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white px-3 py-1.5 rounded-lg font-bold uppercase tracking-widest border border-white/5 transition-all mr-3 align-middle">←</a>
+  {% if modo == 'novo' %}Novo <span class="font-bold text-sky-400">Cliente PJ</span>
+  {% elif modo == 'editar' %}Editar <span class="font-bold text-sky-400">{{ cliente.razao_social }}</span>
+  {% else %}<span class="font-bold text-sky-400">{{ cliente.razao_social }}</span>
+  {% endif %}
+  {% if ver %}
+  <a href="{{ url_for('pj_editar', cid=cliente.id) }}" class="text-[10px] bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 px-3 py-1.5 rounded-lg font-bold uppercase tracking-widest border border-sky-500/20 transition-all ml-3 align-middle">✏ Editar</a>
+  {% endif %}
+{% endblock %}
+{% block header_sub %}Cadastro de Pessoa Jurídica{% endblock %}
+
+{% set ver = (modo == 'ver') %}
+{% set inp = 'glass bg-transparent w-full px-4 py-3 rounded-xl outline-none focus:ring-1 ring-sky-500/50 text-sm' %}
+{% set inp_ro = 'bg-white/3 border border-white/5 w-full px-4 py-3 rounded-xl text-sm text-slate-400 cursor-default' %}
+
+{% block head %}
+<style>
+  main { overflow-y: auto !important; }
+  /* Insc. Estadual — só números */
+  input[name="inscricao_estadual"] { font-variant-numeric: tabular-nums; }
+  /* Textarea auto-resize */
+  textarea.auto-resize { overflow:hidden; resize:none; min-height:44px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<form id="form-pj" method="post" action="{{ url_for('pj_editar', cid=cliente.id) if modo=='editar' else url_for('pj_novo') }}" class="space-y-5">
+
+  <!-- Dados da Empresa -->
+  <div class="glass p-7 rounded-[2rem]">
+    <p class="text-[10px] uppercase tracking-widest text-sky-400 mb-5 font-bold">Dados da Empresa</p>
+
+    <!-- Linha 1: CNPJ | Insc.Estadual | Data Abertura | Telefone -->
+    <div class="flex flex-col md:flex-row gap-4 mb-4">
+      <div class="flex flex-col gap-2" style="flex:2">
+        <label class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">CNPJ <span class="text-sky-400">*</span></label>
+        <input type="text" id="cnpj" name="cnpj" data-fmt="cnpj"
+               value="{{ (cliente.cnpj if cliente else doc_pre|default('')) | fmt_cnpj }}"
+               placeholder="00.000.000/0000-00"
+               class="{{ inp_ro if ver else inp }}" {{ 'readonly' if ver }}>
+      </div>
+      <div class="flex flex-col gap-2" style="flex:1">
+        <label class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Insc. Estadual</label>
+        <input type="text" name="inscricao_estadual" inputmode="numeric"
+               value="{{ cliente.inscricao_estadual if cliente else '' }}"
+               placeholder="00000000000"
+               class="{{ inp_ro if ver else inp }}" {{ 'readonly' if ver }}>
+      </div>
+      <div class="flex flex-col gap-2" style="flex:1">
+        <label class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Abertura</label>
+        <input type="text" name="data_abertura" data-fmt="data"
+               value="{{ (cliente.data_abertura if cliente else '') | fmt_data }}"
+               placeholder="DD/MM/AAAA"
+               class="{{ inp_ro if ver else inp }}" {{ 'readonly' if ver }}>
+      </div>
+      <div class="flex flex-col gap-2" style="flex:1">
+        <label class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Telefone</label>
+        <input type="text" name="telefone" data-fmt="tel"
+               value="{{ (cliente.telefone if cliente else '') | fmt_tel }}"
+               placeholder="(00) 00000-0000"
+               class="{{ inp_ro if ver else inp }}" {{ 'readonly' if ver }}>
+      </div>
+    </div>
+
+    <!-- Linha 2: Razão Social | Fantasia -->
+    <div class="flex flex-col md:flex-row gap-4">
+      <div class="flex flex-col gap-2" style="flex:3">
+        <label class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Razão Social <span class="text-sky-400">*</span></label>
+        <input type="text" name="razao_social"
+               value="{{ cliente.razao_social if cliente else '' }}"
+               class="{{ inp_ro if ver else inp }}" {{ 'readonly' if ver }}>
+      </div>
+      <div class="flex flex-col gap-2" style="flex:3">
+        <label class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Fantasia</label>
+        <input type="text" name="nome_fantasia"
+               value="{{ cliente.nome_fantasia if cliente else '' }}"
+               class="{{ inp_ro if ver else inp }}" {{ 'readonly' if ver }}>
+      </div>
+    </div>
+  </div>
+
+  <!-- Endereço -->
+  <div class="glass p-7 rounded-[2rem]">
+    <p class="text-[10px] uppercase tracking-widest text-sky-400 mb-5 font-bold">Endereço</p>
+    <div class="flex flex-col md:flex-row gap-4 mb-4">
+      <div class="flex flex-col gap-2" style="flex:0 0 130px" class="min-w-0 md:flex-none w-full md:w-auto">
+        <label class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">CEP</label>
+        <input type="text" id="cep" name="cep" data-fmt="cep"
+               value="{{ (cliente.cep if cliente else '') | fmt_cep }}"
+               placeholder="00000-000"
+               class="{{ inp_ro if ver else inp }}" {{ 'readonly' if ver }}>
+      </div>
+      <div class="flex flex-col gap-2" style="flex:4">
+        <label class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Rua</label>
+        <input type="text" id="rua" name="rua"
+               value="{{ cliente.rua if cliente else '' }}"
+               class="{{ inp_ro if ver else inp }}" {{ 'readonly' if ver }}>
+      </div>
+      <div class="flex flex-col gap-2" style="flex:0 0 70px" class="min-w-0 md:flex-none w-full md:w-auto">
+        <label class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Nº</label>
+        <input type="text" name="numero"
+               value="{{ cliente.numero if cliente else '' }}"
+               class="{{ inp_ro if ver else inp }}" {{ 'readonly' if ver }}>
+      </div>
+      <div class="flex flex-col gap-2" style="flex:2">
+        <label class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Complemento</label>
+        <input type="text" name="complemento"
+               value="{{ cliente.complemento if cliente else '' }}"
+               class="{{ inp_ro if ver else inp }}" {{ 'readonly' if ver }}>
+      </div>
+    </div>
+    <div class="flex flex-col md:flex-row gap-4 mb-4">
+      <div class="flex flex-col gap-2" style="flex:3">
+        <label class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Bairro</label>
+        <input type="text" id="bairro" name="bairro"
+               value="{{ cliente.bairro if cliente else '' }}"
+               class="{{ inp_ro if ver else inp }}" {{ 'readonly' if ver }}>
+      </div>
+      <div class="flex flex-col gap-2" style="flex:3">
+        <label class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Cidade</label>
+        <input type="text" id="cidade" name="cidade"
+               value="{{ cliente.cidade if cliente else '' }}"
+               class="{{ inp_ro if ver else inp }}" {{ 'readonly' if ver }}>
+      </div>
+      <div class="flex flex-col gap-2" style="flex:1">
+        <label class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">UF</label>
+        {% if ver %}
+        <input type="text" name="estado" value="{{ cliente.estado if cliente else '' }}" class="{{ inp_ro }}" readonly>
+        {% else %}
+        <select id="estado" name="estado" class="{{ inp }}">
+          {% set uf_atual = cliente.estado if cliente else '' %}
+          {% for uf in ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'] %}
+          <option value="{{ uf }}" {{ 'selected' if uf == uf_atual }}>{{ uf }}</option>
+          {% endfor %}
+        </select>
+        {% endif %}
+      </div>
+    </div>
+    <div class="flex flex-col gap-2">
+      <label class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Observações</label>
+      <textarea name="observacoes" rows="1"
+                class="auto-resize {{ inp_ro if ver else inp }}"
+                {{ 'readonly' if ver }}>{{ cliente.observacoes if cliente else '' }}</textarea>
+    </div>
+  </div>
+
+  <!-- Responsável -->
+  <div class="glass p-7 rounded-[2rem]">
+    <p class="text-[10px] uppercase tracking-widest text-sky-400 mb-5 font-bold">Responsável</p>
+    <div style="display:flex;gap:12px;align-items:center;">
+      <div style="flex:0 0 190px;min-width:0;">
+        <input type="text" id="cpf_responsavel" name="cpf_responsavel" data-fmt="cpf"
+               value="{{ (cliente.cpf_responsavel if cliente else '') | fmt_cpf }}"
+               placeholder="000.000.000-00" {{ 'readonly' if ver }}
+               class="{{ inp_ro if ver else inp }}">
+      </div>
+      <div style="flex:1;min-width:0;">
+        <input type="text" name="nome_responsavel"
+               value="{{ cliente.nome_responsavel if cliente else '' }}"
+               placeholder="Nome completo" {{ 'readonly' if ver }}
+               class="{{ inp_ro if ver else inp }}">
+      </div>
+      <div style="flex:0 0 190px;min-width:0;">
+        <input type="text" name="telefone_responsavel" data-fmt="tel"
+               value="{{ (cliente.telefone_responsavel if cliente else '') | fmt_tel }}"
+               placeholder="(00) 00000-0000" {{ 'readonly' if ver }}
+               class="{{ inp_ro if ver else inp }}">
+      </div>
+    </div>
+  </div>
+
+  <!-- Autorizados -->
+  <div class="glass p-7 rounded-[2rem]">
+    <p class="text-[10px] uppercase tracking-widest text-sky-400 mb-5 font-bold">Autorizados</p>
+    <div id="auts-container" class="space-y-2">
+      {% if cliente and cliente.autorizados %}
+        {% for aut in cliente.autorizados %}
+        <div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:16px;padding:12px 14px;" data-idx="{{ loop.index }}">
+          <div style="display:flex;gap:12px;align-items:center;">
+            <div style="flex:0 0 160px;min-width:0;">
+              <input type="text" name="aut{{ loop.index }}_cpf" data-fmt="cpf" value="{{ aut.cpf | fmt_cpf }}"
+                     placeholder="000.000.000-00" {{ 'readonly' if ver }}
+                     style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;color:{% if ver %}#94a3b8{% else %}#f8fafc{% endif %};font-family:inherit;font-size:0.875rem;padding:10px 14px;outline:none;width:100%;">
+            </div>
+            <div style="flex:1;min-width:0;">
+              <input type="text" name="aut{{ loop.index }}_nome" value="{{ aut.nome }}"
+                     placeholder="Nome completo" {{ 'readonly' if ver }}
+                     style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;color:{% if ver %}#94a3b8{% else %}#f8fafc{% endif %};font-family:inherit;font-size:0.875rem;padding:10px 14px;outline:none;width:100%;">
+            </div>
+            <div style="flex:0 0 160px;min-width:0;">
+              <input type="text" name="aut{{ loop.index }}_tel" data-fmt="tel" value="{{ aut.telefone | fmt_tel }}"
+                     placeholder="(00) 00000-0000" {{ 'readonly' if ver }}
+                     style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;color:{% if ver %}#94a3b8{% else %}#f8fafc{% endif %};font-family:inherit;font-size:0.875rem;padding:10px 14px;outline:none;width:100%;">
+            </div>
+            <div style="display:flex;align-items:center;flex-shrink:0;">
+              <input type="checkbox" name="aut{{ loop.index }}_ativo" value="1"
+                     {{ 'checked' if aut.ativo }} {{ 'disabled' if ver }}
+                     style="width:18px;height:18px;accent-color:#38bdf8;cursor:pointer;">
+            </div>
+            {% if not ver %}
+            <button type="button" onclick="remBloco(this,'auts-container','aut')"
+              style="background:transparent;border:none;color:rgba(248,113,113,0.5);cursor:pointer;font-size:18px;padding:0 4px;flex-shrink:0;line-height:1;"
+              onmouseover="this.style.color='#f87171'" onmouseout="this.style.color='rgba(248,113,113,0.5)'">✕</button>
+            {% endif %}
+          </div>
+        </div>
+        {% endfor %}
+      {% endif %}
+    </div>
+  </div>
+
+  {% if not ver %}
+  <div class="flex justify-between gap-4 pt-1 pb-8">
+    <a href="javascript:history.back()" class="bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white px-6 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest border border-white/5 transition-all">← Voltar</a>
+    <div class="flex flex-col md:flex-row gap-4">
+      <a href="{{ url_for('clientes') }}" class="bg-white/5 hover:bg-white/10 text-slate-400 px-6 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest border border-white/5 transition-all">Cancelar</a>
+      <button type="submit" class="bg-sky-500 hover:bg-sky-400 text-white px-8 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all shadow-[0_0_20px_rgba(56,189,248,0.2)]">💾 Salvar</button>
+    </div>
+  </div>
+  {% endif %}
+
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+{% if not ver %}
+initValidacaoDoc("cnpj","cnpj");
+initFormValidacao("form-pj","cnpj");
+initCEP("cep","rua","bairro","cidade","estado");
+initValidacaoDoc("cpf_responsavel","cpf");
+initBlocosDinamicos("auts-container", "aut", 5, [
+  { key:"cpf",  label:"CPF",      ph:"000.000.000-00",  fmt:"cpf", flex:"0 0 160px" },
+  { key:"nome", label:"Nome",     ph:"Nome completo",   flex:1 },
+  { key:"tel",  label:"Telefone", ph:"(00) 00000-0000", fmt:"tel", flex:"0 0 160px" },
+  { key:"ativo", type:"check" },
+]);
+{% endif %}
+
+// Textarea auto-resize
+document.querySelectorAll('textarea.auto-resize').forEach(el => {
+  const resize = () => { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; };
+  el.addEventListener('input', resize);
+  resize(); // ajusta ao carregar se já tiver conteúdo
+});
+</script>
+<script>
+(function(){
+  var saved = sessionStorage.getItem('busca_clientes');
+  var voltarBtns = document.querySelectorAll('.btn-voltar');
+  voltarBtns.forEach(function(btn){
+    if(saved !== null) {
+      btn.href = '/clientes' + (saved ? '?q=' + encodeURIComponent(saved) : '');
+    }
+  });
+})();
+</script>
+{% endblock %}

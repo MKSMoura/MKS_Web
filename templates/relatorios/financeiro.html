@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block title %}Relatório Financeiro{% endblock %}
+{% block header_title %}Relatório <span class="font-bold text-green-400">Financeiro</span>{% endblock %}
+{% block header_sub %}{% if tipo=='receber' %}Contas a Receber{% else %}Contas a Pagar{% endif %}{% endblock %}
+{% block head %}
+<style>
+main { overflow-y: auto !important; }
+@media print {
+  .no-print { display: none !important; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<form id="filtros-bar" class="no-print" method="get" action="{{ url_for('relatorio_financeiro') }}">
+  <div class="glass p-5 rounded-[2rem] mb-5 flex flex-wrap gap-3 items-end">
+    <div class="flex gap-2">
+      {% for t, label in [('receber','A Receber'),('pagar','A Pagar')] %}
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:8px 14px;border-radius:10px;border:1px solid;transition:all .15s;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;
+             {{ 'background:rgba(56,189,248,0.1);border-color:rgba(56,189,248,0.4);color:#38bdf8;' if filtros.tipo==t else 'background:transparent;border-color:rgba(255,255,255,0.1);color:#64748b;' }}">
+        <input type="radio" name="tipo" value="{{ t }}" {{ 'checked' if filtros.tipo==t }} style="display:none;" onchange="this.form.submit()">
+        {{ label }}
+      </label>
+      {% endfor %}
+    </div>
+    <div class="flex flex-col gap-1">
+      <label class="text-[9px] uppercase tracking-widest text-slate-500 font-bold">Vencimento De</label>
+      <input type="date" name="data_ini" value="{{ filtros.data_ini }}"
+             class="glass bg-transparent px-3 py-2 rounded-xl outline-none focus:ring-1 ring-sky-500/50 text-sm" style="color:#f8fafc;">
+    </div>
+    <div class="flex flex-col gap-1">
+      <label class="text-[9px] uppercase tracking-widest text-slate-500 font-bold">Até</label>
+      <input type="date" name="data_fim" value="{{ filtros.data_fim }}"
+             class="glass bg-transparent px-3 py-2 rounded-xl outline-none focus:ring-1 ring-sky-500/50 text-sm" style="color:#f8fafc;">
+    </div>
+    <button type="submit" class="bg-green-600 hover:bg-green-500 text-white px-5 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all">Filtrar</button>
+    <a href="{{ url_for('relatorio_financeiro', tipo=tipo) }}" class="glass px-5 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest text-slate-400 hover:text-white transition-all">Limpar</a>
+    <button type="button" onclick="window.print()" class="ml-auto glass px-5 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest text-slate-400 hover:text-white transition-all">🖨 Imprimir</button>
+  </div>
+</form>
+
+<!-- Totalizadores -->
+<div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
+  {% for label, val, cor in [
+    ('Lançamentos', totais.qtd, '#38bdf8'),
+    ('Total', 'R$ %.2f'|format(totais.valor), '#a78bfa'),
+    ('Pago/Recebido', 'R$ %.2f'|format(totais.pago), '#4ade80'),
+    ('Pendente', 'R$ %.2f'|format(totais.pendente), '#f87171'),
+  ] %}
+  <div class="glass p-4 rounded-2xl text-center">
+    <p class="text-[9px] uppercase tracking-widest text-slate-500 mb-1">{{ label }}</p>
+    <p class="font-bold font-mono" style="color:{{ cor }};font-size:{{ '1.1rem' if loop.index > 1 else '1.4rem' }};">{{ val }}</p>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="glass rounded-[2rem]" style="overflow-x:auto;">
+  <table class="w-full text-left text-xs">
+    <thead style="background:#0d1b2e;position:sticky;top:0;" class="text-slate-500 uppercase text-[9px] tracking-widest">
+      <tr>
+        <th class="p-4">Descrição</th>
+        <th class="p-4">{{ 'Cliente' if tipo=='receber' else 'Fornecedor' }}</th>
+        {% if tipo=='pagar' %}<th class="p-4">Categoria</th>{% endif %}
+        <th class="p-4">Vencimento</th>
+        <th class="p-4">Pagamento</th>
+        <th class="p-4 text-right">Valor</th>
+        <th class="p-4 text-right">Pago</th>
+        <th class="p-4">Status</th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-white/5">
+      {% set hoje = "" %}
+      {% set sc = {'aberto':'text-sky-400','pago':'text-green-400','recebido':'text-green-400','cancelado':'text-slate-500'} %}
+      {% for r in registros %}
+      <tr class="hover:bg-white/5">
+        <td class="p-4 font-bold text-slate-200">{{ r.descricao }}</td>
+        <td class="p-4 text-slate-400">{{ r.nome_cliente or r.nome_fornecedor or '—' }}</td>
+        {% if tipo=='pagar' %}<td class="p-4 text-slate-500">{{ r.categoria or '—' }}</td>{% endif %}
+        <td class="p-4 font-mono text-slate-400">{{ r.data_vencimento | fmt_data if r.data_vencimento else '—' }}</td>
+        <td class="p-4 font-mono {{ 'text-green-400' if r.data_pagamento else 'text-slate-600' }}">{{ r.data_pagamento | fmt_data if r.data_pagamento else '—' }}</td>
+        <td class="p-4 text-right font-mono text-slate-200">R$ {{ "%.2f"|format(r.valor|float) }}</td>
+        <td class="p-4 text-right font-mono {{ 'text-green-400' if r.valor_pago else 'text-slate-600' }}">
+          {% if r.valor_pago and r.valor_pago|float > 0 %}R$ {{ "%.2f"|format(r.valor_pago|float) }}{% else %}—{% endif %}
+        </td>
+        <td class="p-4 font-bold {{ sc.get(r.status,'text-slate-400') }}">{{ r.status }}</td>
+      </tr>
+      {% endfor %}
+      {% if not registros %}
+      <tr><td colspan="8" class="p-16 text-center opacity-30 italic text-[10px] uppercase tracking-widest">Nenhum lançamento encontrado</td></tr>
+      {% endif %}
+    </tbody>
+    {% if registros %}
+    <tfoot style="background:#0d1b2e;">
+      <tr class="text-[10px] font-bold uppercase tracking-widest">
+        <td class="p-4 text-slate-400" colspan="{{ 3 if tipo=='pagar' else 2 }}">{{ totais.qtd }} lançamentos</td>
+        <td class="p-4" colspan="2"></td>
+        <td class="p-4 text-right font-mono text-slate-300">R$ {{ "%.2f"|format(totais.valor) }}</td>
+        <td class="p-4 text-right font-mono text-green-400">R$ {{ "%.2f"|format(totais.pago) }}</td>
+        <td class="p-4"></td>
+      </tr>
+    </tfoot>
+    {% endif %}
+  </table>
+</div>
+<div class="mt-4" id="btn-voltar" class="no-print">
+  <a href="{{ url_for('relatorios') }}" class="text-[10px] font-bold uppercase tracking-widest text-slate-500 hover:text-white transition-all">← Voltar aos Relatórios</a>
+</div>
+{% endblock %}

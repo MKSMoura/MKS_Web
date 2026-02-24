@@ -1,0 +1,222 @@
+{% extends "base.html" %}
+{% set label_tipo = 'Receber' if tipo=='receber' else 'Pagar' %}
+{% block title %}{{ reg.descricao if reg else 'Novo Lançamento' }}{% endblock %}
+{% block header_title %}
+  <a href="{{ url_for('financeiro', aba=tipo) }}" class="text-[10px] bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white px-3 py-1.5 rounded-lg font-bold uppercase tracking-widest border border-white/5 transition-all mr-3 align-middle">←</a>
+  {% if modo=='novo' %}Novo <span class="font-bold {{ 'text-sky-400' if tipo=='receber' else 'text-rose-400' }}">A {{ label_tipo }}</span>
+  {% elif modo=='editar' %}Editar <span class="font-bold text-sky-400">{{ reg.descricao }}</span>
+  {% else %}<span class="font-bold text-sky-400">{{ reg.descricao }}</span>
+    {% set url_edit = url_for('receber_editar', lid=reg.id) if tipo=='receber' else url_for('pagar_editar', lid=reg.id) %}
+    <a href="{{ url_edit }}" class="text-[10px] bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 px-3 py-1.5 rounded-lg font-bold uppercase tracking-widest border border-sky-500/20 ml-3 align-middle">✏ Editar</a>
+  {% endif %}
+{% endblock %}
+{% block header_sub %}Contas a {{ label_tipo }}{% endblock %}
+{% set ver = (modo=='ver') %}
+{% set inp = 'glass bg-transparent w-full px-4 py-3 rounded-xl outline-none focus:ring-1 ring-sky-500/50 text-sm' %}
+{% set ro  = 'bg-white/3 border border-white/5 w-full px-4 py-3 rounded-xl text-sm text-slate-400 cursor-default' %}
+{% set f_n = inp if not ver else ro %}
+{% block head %}<style>main{overflow-y:auto!important}</style>{% endblock %}
+
+{% block content %}
+{% set url_action = (url_for('receber_editar',lid=reg.id) if tipo=='receber' else url_for('pagar_editar',lid=reg.id)) if modo=='editar' else (url_for('receber_novo') if tipo=='receber' else url_for('pagar_novo')) %}
+<form method="post" action="{{ url_action }}" class="space-y-5 pb-8">
+
+  <!-- Principal -->
+  <div class="glass p-7 rounded-[2rem]">
+    <p class="text-[10px] uppercase tracking-widest {{ 'text-sky-400' if tipo=='receber' else 'text-rose-400' }} mb-5 font-bold">Lançamento</p>
+    <div class="flex flex-col gap-2 mb-4">
+      <label class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Descrição <span class="text-sky-400">*</span></label>
+      <input type="text" name="descricao" value="{{ reg.descricao if reg else '' }}" placeholder="Descrição do lançamento" class="{{ f_n }}" {{ 'readonly' if ver }}>
+    </div>
+
+    {% if tipo == 'receber' %}
+    <div class="flex flex-col md:flex-row gap-4 mb-4">
+      <div class="flex flex-col gap-2" style="flex:0 0 100px">
+        <label class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Cód. Cliente</label>
+        <input type="text" name="cliente_id" value="{{ reg.cliente_id if reg else '' }}" placeholder="ID" class="{{ f_n }}" {{ 'readonly' if ver }}>
+      </div>
+      <div class="flex flex-col gap-2" style="flex:2;position:relative;">
+        <label class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Cliente</label>
+        <input type="text" id="nome_cliente" name="nome_cliente" value="{{ reg.nome_cliente if reg else '' }}" placeholder="Nome do cliente..." autocomplete="off" class="{{ f_n }}" {{ 'readonly' if ver }}>
+        {% if not ver %}<div id="ac-cliente" style="position:absolute;top:100%;left:0;right:0;background:#0d1b2e;border:1px solid rgba(56,189,248,0.2);border-radius:12px;z-index:100;max-height:200px;overflow-y:auto;margin-top:4px;display:none;"></div>{% endif %}
+      </div>
+      <div class="flex flex-col gap-2" style="flex:1">
+        <label class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Nº Pedido</label>
+        <input type="text" name="numero_pedido" value="{{ reg.numero_pedido if reg else '' }}" placeholder="PED2602XXXX" class="{{ f_n }}" {{ 'readonly' if ver }}>
+      </div>
+    </div>
+    {% else %}
+    <div class="flex flex-col md:flex-row gap-4 mb-4">
+      <div class="flex flex-col gap-2" style="flex:2;position:relative;">
+        <label class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Fornecedor</label>
+        <input type="text" id="nome_fornecedor" name="nome_fornecedor" value="{{ reg.nome_fornecedor if reg else '' }}" placeholder="Nome do fornecedor..." autocomplete="off" class="{{ f_n }}" {{ 'readonly' if ver }}>
+        {% if not ver %}<div id="ac-forn" style="position:absolute;top:100%;left:0;right:0;background:#0d1b2e;border:1px solid rgba(56,189,248,0.2);border-radius:12px;z-index:100;max-height:200px;overflow-y:auto;margin-top:4px;display:none;"></div>{% endif %}
+      </div>
+      <div class="flex flex-col gap-2" style="flex:1">
+        <label class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Categoria</label>
+        {% if ver %}
+        <input type="text" value="{{ reg.categoria if reg else '' }}" class="{{ ro }}" readonly>
+        {% else %}
+        <select name="categoria" class="{{ inp }}">
+          <option value="">— Selecione —</option>
+          {% for c in categorias %}
+          <option value="{{ c.nome }}" {{ 'selected' if reg and reg.categoria==c.nome }}>{{ c.nome }}</option>
+          {% endfor %}
+        </select>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Valores e Datas -->
+    <div class="flex flex-col md:flex-row gap-4 mb-4">
+      <div class="flex flex-col gap-2" style="flex:1">
+        <label class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Valor <span class="text-sky-400">*</span></label>
+        <div style="position:relative;">
+          <span style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:.8rem;pointer-events:none;">R$</span>
+          <input type="text" name="valor" value="{{ '%.2f'|format(reg.valor|float) if reg and reg.valor else '' }}" placeholder="0,00" inputmode="decimal" class="{{ f_n }}" style="padding-left:32px;" {{ 'readonly' if ver }}>
+        </div>
+      </div>
+      <div class="flex flex-col gap-2" style="flex:1">
+        <label class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Valor Pago</label>
+        <div style="position:relative;">
+          <span style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:.8rem;pointer-events:none;">R$</span>
+          <input type="text" name="valor_pago" value="{{ '%.2f'|format(reg.valor_pago|float) if reg and reg.valor_pago else '' }}" placeholder="0,00" inputmode="decimal" class="{{ f_n }}" style="padding-left:32px;" {{ 'readonly' if ver }}>
+        </div>
+      </div>
+      <div class="flex flex-col gap-2" style="flex:1">
+        <label class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Data Emissão</label>
+        <input type="date" name="data_emissao" value="{{ reg.data_emissao if reg else '' }}" class="{{ f_n }}" {{ 'readonly' if ver }}>
+      </div>
+      <div class="flex flex-col gap-2" style="flex:1">
+        <label class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Vencimento <span class="text-sky-400">*</span></label>
+        <input type="date" name="data_vencimento" value="{{ reg.data_vencimento if reg else '' }}" class="{{ f_n }}" {{ 'readonly' if ver }}>
+      </div>
+      <div class="flex flex-col gap-2" style="flex:1">
+        <label class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Data Pagamento</label>
+        <input type="date" name="data_pagamento" value="{{ reg.data_pagamento if reg else '' }}" class="{{ f_n }}" {{ 'readonly' if ver }}>
+      </div>
+    </div>
+
+    <div class="flex flex-col md:flex-row gap-4">
+      <div class="flex flex-col gap-2" style="flex:1">
+        <label class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Status</label>
+        {% if ver %}
+        <input type="text" value="{{ reg.status if reg else 'aberto' }}" class="{{ ro }}" readonly>
+        {% else %}
+        <select name="status" class="{{ inp }}">
+          {% set statuses = ['aberto','recebido','cancelado'] if tipo=='receber' else ['aberto','pago','cancelado'] %}
+          {% for s in statuses %}
+          <option value="{{ s }}" {{ 'selected' if reg and reg.status==s }}>{{ s|capitalize }}</option>
+          {% endfor %}
+        </select>
+        {% endif %}
+      </div>
+      <div class="flex flex-col gap-2" style="flex:1">
+        <label class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Forma de Pagamento</label>
+        {% if ver %}
+        <input type="text" value="{{ reg.forma_pagamento if reg else '' }}" class="{{ ro }}" readonly>
+        {% else %}
+        <select name="forma_pagamento" class="{{ inp }}">
+          {% set fp = reg.forma_pagamento if reg else '' %}
+          {% for op in ['','Dinheiro','Cartão Débito','Cartão Crédito','PIX','Boleto','Transferência','A prazo'] %}
+          <option value="{{ op }}" {{ 'selected' if op==fp }}>{{ op or '— Selecione —' }}</option>
+          {% endfor %}
+        </select>
+        {% endif %}
+      </div>
+      <div class="flex flex-col gap-2" style="flex:2">
+        <label class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Observações</label>
+        <input type="text" name="observacoes" value="{{ reg.observacoes if reg else '' }}" placeholder="Observações..." class="{{ f_n }}" {{ 'readonly' if ver }}>
+      </div>
+    </div>
+  </div>
+
+  <!-- Controle -->
+  {% if reg %}
+  <div class="glass p-7 rounded-[2rem]">
+    <p class="text-[10px] uppercase tracking-widest text-sky-400 mb-4 font-bold">Controle</p>
+    <div class="flex flex-col md:flex-row gap-4">
+      <div class="flex flex-col gap-2" style="flex:1">
+        <label class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Lançado por</label>
+        {% if ver %}
+        <input type="text" value="{{ reg.usuario_lancou or '—' }}" class="{{ ro }}" readonly>
+        {% else %}
+        <input type="text" name="usuario_lancou" value="{{ reg.usuario_lancou or '' }}" class="{{ inp }}">
+        {% endif %}
+      </div>
+      <div class="flex flex-col gap-2" style="flex:1">
+        <label class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Data Lançamento</label>
+        <input type="text" value="{{ reg.data_lancamento | fmt_data if reg.data_lancamento else '—' }}" class="{{ ro }}" readonly>
+      </div>
+    </div>
+  </div>
+  {% else %}
+  <input type="hidden" name="usuario_lancou" value="{{ session.get('usuario_nome','') }}">
+  {% endif %}
+
+  {% if not ver %}
+  <div class="flex justify-between gap-4 pt-1">
+    <a href="{{ url_for('financeiro', aba=tipo) }}" class="bg-white/5 hover:bg-white/10 text-slate-400 px-6 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest border border-white/5 transition-all">← Voltar</a>
+    <button type="submit" class="{{ 'bg-sky-500 hover:bg-sky-400' if tipo=='receber' else 'bg-rose-500 hover:bg-rose-400' }} text-white px-8 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all">💾 Salvar</button>
+  </div>
+  {% endif %}
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Autocomplete cliente
+const ncEl = document.getElementById('nome_cliente');
+const acEl = document.getElementById('ac-cliente');
+if (ncEl && acEl) {
+  let t;
+  ncEl.addEventListener('input', function() {
+    clearTimeout(t);
+    const q = this.value.trim();
+    if (q.length < 2) { acEl.style.display='none'; return; }
+    t = setTimeout(async () => {
+      const r = await fetch('/api/busca-cliente?q='+encodeURIComponent(q));
+      const d = await r.json();
+      if (!d.length) { acEl.style.display='none'; return; }
+      acEl.innerHTML = d.map(c=>`<div style="padding:10px 14px;cursor:pointer;font-size:.8rem;border-bottom:1px solid rgba(255,255,255,0.05);" data-id="${c.id}" data-nome="${c.nome}">${c.nome} <span style="color:#64748b;font-size:.75rem;">${c.doc}</span></div>`).join('');
+      acEl.style.display='block';
+      acEl.querySelectorAll('div').forEach(d2=>d2.addEventListener('click',()=>{
+        ncEl.value=d2.dataset.nome;
+        document.querySelector('[name=cliente_id]').value=d2.dataset.id;
+        acEl.style.display='none';
+      }));
+    }, 300);
+  });
+  document.addEventListener('click', e=>{ if(!ncEl.contains(e.target)) acEl.style.display='none'; });
+}
+
+// Autocomplete fornecedor
+const nfEl = document.getElementById('nome_fornecedor');
+const afEl = document.getElementById('ac-forn');
+if (nfEl && afEl) {
+  let t;
+  nfEl.addEventListener('input', function() {
+    clearTimeout(t);
+    const q = this.value.trim();
+    if (q.length < 2) { afEl.style.display='none'; return; }
+    t = setTimeout(async () => {
+      const r = await fetch('/api/busca-fornecedor?q='+encodeURIComponent(q));
+      const d = await r.json();
+      if (!d.length) { afEl.style.display='none'; return; }
+      afEl.innerHTML = d.map(f=>`<div style="padding:10px 14px;cursor:pointer;font-size:.8rem;border-bottom:1px solid rgba(255,255,255,0.05);" data-id="${f.id}" data-nome="${f.nome}">${f.nome} <span style="color:#64748b;font-size:.75rem;">${f.doc}</span></div>`).join('');
+      afEl.style.display='block';
+      afEl.querySelectorAll('div').forEach(d2=>d2.addEventListener('click',()=>{
+        nfEl.value=d2.dataset.nome;
+        const fidEl=document.querySelector('[name=fornecedor_id]');
+        if(fidEl) fidEl.value=d2.dataset.id;
+        afEl.style.display='none';
+      }));
+    }, 300);
+  });
+  document.addEventListener('click', e=>{ if(!nfEl.contains(e.target)) afEl.style.display='none'; });
+}
+
+fixInputStyles();
+</script>
+{% endblock %}

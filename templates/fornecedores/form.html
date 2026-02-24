@@ -1,0 +1,216 @@
+{% extends "base.html" %}
+{% block title %}{{ fornecedor.razao_social if fornecedor else 'Novo Fornecedor' }}{% endblock %}
+{% block header_title %}
+  <a href="/fornecedores" class="btn-voltar text-[10px] bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white px-3 py-1.5 rounded-lg font-bold uppercase tracking-widest border border-white/5 transition-all mr-3 align-middle">←</a>
+  {% if modo=='novo' %}Novo <span class="font-bold text-sky-400">Fornecedor</span>
+  {% elif modo=='editar' %}Editar <span class="font-bold text-sky-400">{{ fornecedor.razao_social }}</span>
+  {% else %}<span class="font-bold text-sky-400">{{ fornecedor.razao_social }}</span>
+    <a href="{{ url_for('fornecedor_editar', fid=fornecedor.id) }}" class="text-[10px] bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 px-3 py-1.5 rounded-lg font-bold uppercase tracking-widest border border-sky-500/20 ml-3 align-middle transition-all">✏ Editar</a>
+  {% endif %}
+{% endblock %}
+{% block header_sub %}Cadastro de Fornecedor{% endblock %}
+{% set ver = (modo=='ver') %}
+{% set inp = 'glass bg-transparent w-full px-4 py-3 rounded-xl outline-none focus:ring-1 ring-sky-500/50 text-sm' %}
+{% set ro  = 'bg-white/3 border border-white/5 w-full px-4 py-3 rounded-xl text-sm text-slate-400 cursor-default' %}
+{% set f_n = inp if not ver else ro %}
+{% block head %}<style>main{overflow-y:auto!important} textarea.auto-resize{overflow:hidden;resize:none;min-height:44px;}</style>{% endblock %}
+
+{% macro field(label, name, val, placeholder='', type='text', required=False) %}
+<div class="flex flex-col gap-2">
+  <label class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">{{ label }}{% if required %} <span class="text-sky-400">*</span>{% endif %}</label>
+  <input type="{{ type }}" name="{{ name }}" value="{{ val or '' }}" placeholder="{{ placeholder }}"
+         class="{{ f_n }}" {{ 'readonly' if ver }}>
+</div>
+{% endmacro %}
+
+{% block content %}
+<form method="post"
+      action="{{ url_for('fornecedor_editar',fid=fornecedor.id) if modo=='editar' else url_for('fornecedor_novo') }}"
+      class="space-y-5 pb-8">
+
+  <!-- Identificação -->
+  <div class="glass p-7 rounded-[2rem]">
+    <div class="flex items-center justify-between mb-5">
+      <p class="text-[10px] uppercase tracking-widest text-sky-400 font-bold">Identificação</p>
+      {% if not ver %}
+      <div class="flex gap-2">
+        {% for t in ['PJ','PF'] %}
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+          <input type="radio" name="tipo" value="{{ t }}" {{ 'checked' if (fornecedor and fornecedor.tipo==t) or (not fornecedor and t=='PJ') }}
+                 style="accent-color:#38bdf8;" onchange="toggleTipo(this.value)">
+          <span class="text-[10px] font-bold uppercase tracking-widest text-slate-400">{{ t }}</span>
+        </label>
+        {% endfor %}
+      </div>
+      {% else %}
+      <span class="border px-3 py-1 rounded text-[9px] font-bold uppercase {{ 'text-indigo-400 bg-indigo-500/10 border-indigo-500/20' if fornecedor.tipo=='PJ' else 'text-amber-400 bg-amber-500/10 border-amber-500/20' }}">{{ fornecedor.tipo }}</span>
+      {% endif %}
+    </div>
+    <div class="flex flex-col md:flex-row gap-4 mb-4">
+      <div class="flex flex-col gap-2" style="flex:2">
+        <label class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Razão Social / Nome <span class="text-sky-400">*</span></label>
+        <input type="text" name="razao_social" value="{{ fornecedor.razao_social if fornecedor else '' }}" placeholder="Razão Social" class="{{ f_n }}" {{ 'readonly' if ver }}>
+      </div>
+      <div class="flex flex-col gap-2" style="flex:2">
+        <label class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Nome Fantasia</label>
+        <input type="text" name="nome_fantasia" value="{{ fornecedor.nome_fantasia if fornecedor else '' }}" placeholder="Nome Fantasia" class="{{ f_n }}" {{ 'readonly' if ver }}>
+      </div>
+    </div>
+    <div class="flex flex-col md:flex-row gap-4 mb-4">
+      <div id="bloco-pj" class="flex flex-col gap-2" style="flex:1">
+        <label class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">CNPJ</label>
+        <input type="text" name="cnpj" id="cnpj" value="{{ fornecedor.cnpj if fornecedor else '' }}" placeholder="00.000.000/0000-00" data-fmt="cnpj" class="{{ f_n }}" {{ 'readonly' if ver }}>
+      </div>
+      <div id="bloco-pf" class="flex flex-col gap-2" style="flex:1;display:none!important">
+        <label class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">CPF</label>
+        <input type="text" name="cpf" id="cpf" value="{{ fornecedor.cpf if fornecedor else '' }}" placeholder="000.000.000-00" data-fmt="cpf" class="{{ f_n }}" {{ 'readonly' if ver }}>
+      </div>
+      <div class="flex flex-col gap-2" style="flex:1">
+        <label class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Insc. Estadual</label>
+        <input type="text" name="ie" value="{{ fornecedor.ie if fornecedor else '' }}" placeholder="000.000.000.000" class="{{ f_n }}" {{ 'readonly' if ver }}>
+      </div>
+      <div class="flex flex-col gap-2" style="flex:1">
+        <label class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Categoria</label>
+        <input type="text" name="categoria" value="{{ fornecedor.categoria if fornecedor else '' }}" placeholder="Ex: Alimentos" class="{{ f_n }}" {{ 'readonly' if ver }}>
+      </div>
+    </div>
+    <div class="flex flex-col md:flex-row gap-4">
+      <div class="flex flex-col gap-2" style="flex:1">
+        <label class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Email</label>
+        <input type="email" name="email" value="{{ fornecedor.email if fornecedor else '' }}" placeholder="email@fornecedor.com" class="{{ f_n }}" {{ 'readonly' if ver }}>
+      </div>
+      {{ field('Telefone','telefone', fornecedor.telefone if fornecedor else '', '(00) 0000-0000') }}
+      {{ field('Celular','celular', fornecedor.celular if fornecedor else '', '(00) 00000-0000') }}
+      {{ field('Contato','contato_nome', fornecedor.contato_nome if fornecedor else '', 'Nome do contato') }}
+    </div>
+  </div>
+
+  <!-- Endereço -->
+  <div class="glass p-7 rounded-[2rem]">
+    <p class="text-[10px] uppercase tracking-widest text-sky-400 mb-5 font-bold">Endereço</p>
+    <div class="flex flex-col md:flex-row gap-4 mb-4">
+      <div class="flex flex-col gap-2" style="flex:0 0 150px">
+        <label class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">CEP</label>
+        <input type="text" name="cep" id="cep-forn" value="{{ fornecedor.cep if fornecedor else '' }}" placeholder="00000-000" data-fmt="cep" class="{{ f_n }}" {{ 'readonly' if ver }}>
+      </div>
+      <div class="flex flex-col gap-2" style="flex:3">
+        <label class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Rua</label>
+        <input type="text" name="rua" id="rua-forn" value="{{ fornecedor.rua if fornecedor else '' }}" placeholder="Logradouro" class="{{ f_n }}" {{ 'readonly' if ver }}>
+      </div>
+      <div class="flex flex-col gap-2" style="flex:0 0 100px">
+        {{ field('Número','numero', fornecedor.numero if fornecedor else '', 'Nº') }}
+      </div>
+      <div class="flex flex-col gap-2" style="flex:1">
+        {{ field('Complemento','complemento', fornecedor.complemento if fornecedor else '', 'Apto, sala...') }}
+      </div>
+    </div>
+    <div class="flex flex-col md:flex-row gap-4">
+      <div class="flex flex-col gap-2" style="flex:1">
+        {{ field('Bairro','bairro', fornecedor.bairro if fornecedor else '') }}
+      </div>
+      <div class="flex flex-col gap-2" style="flex:2">
+        {{ field('Cidade','cidade', fornecedor.cidade if fornecedor else '') }}
+      </div>
+      <div class="flex flex-col gap-2" style="flex:0 0 80px">
+        <label class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">UF</label>
+        {% if ver %}
+        <input type="text" value="{{ fornecedor.estado if fornecedor else '' }}" class="{{ ro }}" readonly>
+        {% else %}
+        <select name="estado" class="{{ inp }}">
+          <option value="">--</option>
+          {% for uf in ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'] %}
+          <option value="{{ uf }}" {{ 'selected' if fornecedor and fornecedor.estado==uf }}>{{ uf }}</option>
+          {% endfor %}
+        </select>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Financeiro / Bancário -->
+  <div class="glass p-7 rounded-[2rem]">
+    <p class="text-[10px] uppercase tracking-widest text-sky-400 mb-5 font-bold">Dados Bancários e Pagamento</p>
+    <div class="flex flex-col md:flex-row gap-4 mb-4">
+      {{ field('Banco','banco', fornecedor.banco if fornecedor else '', 'Nome do banco') }}
+      {{ field('Agência','agencia', fornecedor.agencia if fornecedor else '', '0000-0') }}
+      {{ field('Conta','conta', fornecedor.conta if fornecedor else '', '00000-0') }}
+      {{ field('PIX','pix', fornecedor.pix if fornecedor else '', 'Chave PIX') }}
+    </div>
+    <div class="flex flex-col md:flex-row gap-4">
+      <div class="flex flex-col gap-2" style="flex:0 0 180px">
+        <label class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Prazo de Pagamento (dias)</label>
+        <input type="number" name="prazo_pagamento" value="{{ fornecedor.prazo_pagamento if fornecedor else 30 }}" placeholder="30" class="{{ f_n }}" {{ 'readonly' if ver }}>
+      </div>
+      <div class="flex flex-col gap-2" style="flex:0 0 180px">
+        <label class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Status</label>
+        {% if ver %}
+        <input type="text" value="{{ fornecedor.status if fornecedor else 'ativo' }}" class="{{ ro }}" readonly>
+        {% else %}
+        <select name="status" class="{{ inp }}">
+          <option value="ativo"   {{ 'selected' if not fornecedor or fornecedor.status=='ativo' }}>Ativo</option>
+          <option value="inativo" {{ 'selected' if fornecedor and fornecedor.status=='inativo' }}>Inativo</option>
+        </select>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Observações -->
+  <div class="glass p-7 rounded-[2rem]">
+    <p class="text-[10px] uppercase tracking-widest text-sky-400 mb-4 font-bold">Observações</p>
+    <textarea name="observacoes" rows="1" class="auto-resize {{ f_n }}" {{ 'readonly' if ver }}
+              placeholder="Observações sobre o fornecedor...">{{ fornecedor.observacoes if fornecedor else '' }}</textarea>
+    {% if fornecedor %}
+    <div class="flex flex-col md:flex-row gap-4 mt-4">
+      <div class="flex flex-col gap-2" style="flex:1">
+        <label class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Cadastrado em</label>
+        <input type="text" value="{{ fornecedor.data_cadastro | fmt_data if fornecedor.data_cadastro else '—' }}" class="{{ ro }}" readonly>
+      </div>
+      <div class="flex flex-col gap-2" style="flex:1">
+        <label class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Atualizado em</label>
+        <input type="text" value="{{ fornecedor.data_atualizacao | fmt_data if fornecedor.data_atualizacao else '—' }}" class="{{ ro }}" readonly>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  {% if not ver %}
+  <div class="flex justify-between gap-4 pt-1">
+    <a href="/fornecedores" class="btn-voltar bg-white/5 hover:bg-white/10 text-slate-400 px-6 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest border border-white/5 transition-all">← Voltar</a>
+    <button type="submit" class="bg-sky-500 hover:bg-sky-400 text-white px-8 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all shadow-[0_0_20px_rgba(56,189,248,0.2)]">💾 Salvar</button>
+  </div>
+  {% endif %}
+</form>
+{% endblock %}
+{% block scripts %}
+<script>
+function toggleTipo(t) {
+  document.getElementById('bloco-pj').style.display = t==='PJ' ? '' : 'none';
+  document.getElementById('bloco-pf').style.display = t==='PF' ? '' : 'none';
+}
+toggleTipo('{{ fornecedor.tipo if fornecedor else "PJ" }}');
+
+// CEP autocomplete
+const cepEl = document.getElementById('cep-forn');
+if (cepEl && !cepEl.readOnly) {
+  initCEP('cep-forn','rua-forn','bairro-forn','cidade-forn','estado-forn');
+}
+
+document.querySelectorAll('textarea.auto-resize').forEach(el => {
+  const r = () => { el.style.height='auto'; el.style.height=el.scrollHeight+'px'; };
+  el.addEventListener('input', r); r();
+});
+fixInputStyles();
+</script>
+<script>
+(function(){
+  var saved = sessionStorage.getItem('busca_fornecedores');
+  var voltarBtns = document.querySelectorAll('.btn-voltar');
+  voltarBtns.forEach(function(btn){
+    if(saved !== null) {
+      btn.href = '/fornecedores' + (saved ? '?q=' + encodeURIComponent(saved) : '');
+    }
+  });
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block header_title %}Distribuidora <span class="font-bold text-sky-400">Vision</span>{% endblock %}
+{% block header_sub %}Visão geral do sistema e performance.{% endblock %}
+
+{% block head %}
+<style>
+  main { overflow-y: auto !important; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="grid grid-cols-4 gap-6 mb-8">
+  <div class="glass p-6 rounded-[2rem] glass-hover">
+    <p class="text-[10px] uppercase tracking-widest text-slate-500 mb-2 font-bold">Clientes PF</p>
+    <h3 class="text-3xl font-orbitron text-white">{{ total_pf }}</h3>
+    <p class="text-xs text-sky-400 mt-2">Pessoas Físicas</p>
+  </div>
+  <div class="glass p-6 rounded-[2rem] glass-hover border-l-2 border-l-sky-500">
+    <p class="text-[10px] uppercase tracking-widest text-slate-500 mb-2 font-bold">Clientes PJ</p>
+    <h3 class="text-3xl font-orbitron text-white">{{ total_pj }}</h3>
+    <p class="text-xs text-sky-400 mt-2">Pessoas Jurídicas</p>
+  </div>
+  <div class="glass p-6 rounded-[2rem] glass-hover">
+    <p class="text-[10px] uppercase tracking-widest text-slate-500 mb-2 font-bold">Total Clientes</p>
+    <h3 class="text-3xl font-orbitron text-white">{{ total_pf + total_pj }}</h3>
+    <p class="text-xs text-slate-400 mt-2">Base cadastrada</p>
+  </div>
+  <div class="glass p-6 rounded-[2rem] glass-hover border-l-2 border-l-green-500">
+    <p class="text-[10px] uppercase tracking-widest text-slate-500 mb-2 font-bold">Status</p>
+    <h3 class="text-3xl font-orbitron text-green-400">ON</h3>
+    <p class="text-xs text-green-400 mt-2">Sistema operacional</p>
+  </div>
+</div>
+
+<div class="glass p-10 rounded-[3rem]">
+  <div class="flex justify-between items-center mb-10">
+    <h4 class="font-bold text-lg uppercase tracking-tighter">Acesso Rápido</h4>
+  </div>
+  <div class="grid grid-cols-2 gap-6">
+    <a href="{{ url_for('pf_novo') }}" class="glass glass-hover p-8 rounded-[2rem] flex items-center gap-6 group">
+      <div class="w-14 h-14 bg-sky-500/10 rounded-2xl flex items-center justify-center border border-sky-500/20 group-hover:bg-sky-500/20 transition-all">
+        <svg class="w-7 h-7 text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/></svg>
+      </div>
+      <div>
+        <p class="text-[10px] text-slate-500 uppercase tracking-widest font-bold mb-1">Novo</p>
+        <p class="font-bold text-lg">Cliente PF</p>
+      </div>
+    </a>
+    <a href="{{ url_for('pj_novo') }}" class="glass glass-hover p-8 rounded-[2rem] flex items-center gap-6 group">
+      <div class="w-14 h-14 bg-indigo-500/10 rounded-2xl flex items-center justify-center border border-indigo-500/20 group-hover:bg-indigo-500/20 transition-all">
+        <svg class="w-7 h-7 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+      </div>
+      <div>
+        <p class="text-[10px] text-slate-500 uppercase tracking-widest font-bold mb-1">Novo</p>
+        <p class="font-bold text-lg">Cliente PJ</p>
+      </div>
+    </a>
+  </div>
+</div>
+{% endblock %}

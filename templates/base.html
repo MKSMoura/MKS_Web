@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#020617">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>REPRESENTA | MKS {% block title %}{% endblock %}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Plus+Jakarta+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root { --neon-sky: #38bdf8; --deep-space: #020617; }
+    body { background-color: var(--deep-space); color: #f8fafc; font-family: 'Plus Jakarta Sans', sans-serif; }
+    html { background-color: #020617; }
+    .font-orbitron { font-family: 'Orbitron', sans-serif; }
+    .glass { background: rgba(255,255,255,0.02); backdrop-filter: blur(15px); border: 1px solid rgba(255,255,255,0.08); }
+    .glass-hover:hover { background: rgba(255,255,255,0.05); border-color: rgba(56,189,248,0.3); transition: all 0.3s ease; }
+    .page-fade { animation: fadeIn 0.5s ease-out forwards; }
+    @keyframes fadeIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(56,189,248,0.2); border-radius: 10px; }
+    select {
+      appearance: none;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 12px;
+      color: #f8fafc;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 0.875rem;
+      padding: 10px 36px 10px 14px;
+      outline: none;
+      cursor: pointer;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath fill='%2338bdf8' d='M7 7l3 3 3-3'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+      background-size: 16px;
+      transition: border-color .2s;
+    }
+    select:focus { border-color: rgba(56,189,248,0.5); outline: none; box-shadow: 0 0 0 1px rgba(56,189,248,0.3); }
+    select option { background: #0d1b2e; color: #f8fafc; }
+    input:-webkit-autofill, input:-webkit-autofill:hover, input:-webkit-autofill:focus,
+    textarea:-webkit-autofill { -webkit-box-shadow: 0 0 0px 1000px #020617 inset !important; -webkit-text-fill-color: #f8fafc !important; transition: background-color 5000s; }
+    .active-menu { background: rgba(56,189,248,0.1); color: var(--neon-sky); border-left: 4px solid var(--neon-sky); }
+    .flash-ok   { background: rgba(34,197,94,0.08); border: 1px solid rgba(34,197,94,0.2); color: #4ade80; }
+    .flash-erro { background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.2); color: #f87171; }
+
+    /* Responsivo — controlado via JS para evitar bugs do Tailwind CDN */
+    @media (max-width: 767px) {
+      html, body { overflow-x: hidden; }
+      .grid-cols-4 { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+    }
+
+  </style>
+  {% block head %}{% endblock %}
+</head>
+<body class="flex min-h-screen" autocomplete="off">
+
+  <!-- luzes de fundo -->
+  <div class="fixed top-[-10%] left-[-10%] w-[500px] h-[500px] bg-sky-900/20 blur-[120px] rounded-full -z-10"></div>
+  <div class="fixed bottom-[-10%] right-[-10%] w-[400px] h-[400px] bg-indigo-900/20 blur-[100px] rounded-full -z-10"></div>
+
+  <!-- OVERLAY mobile (fecha menu ao clicar fora) -->
+  <div id="menu-overlay" onclick="fecharMenu()"
+       style="display:none;position:fixed;inset:0;background:rgba(2,6,23,0.7);backdrop-filter:blur(4px);z-index:35;"></div>
+
+  <!-- TOPBAR mobile — só visível abaixo de 768px via CSS -->
+  <div id="mobile-topbar" class="border-b border-white/5"
+       style="display:none;position:fixed;top:0;left:0;right:0;z-index:30;align-items:center;justify-content:space-between;padding:14px 20px;background:#020617;">
+    <button onclick="abrirMenu()" style="background:transparent;border:none;cursor:pointer;padding:4px;">
+      <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/>
+      </svg>
+    </button>
+    <span class="font-orbitron font-bold text-sky-400 text-sm tracking-tighter">REPRESENTA</span>
+    <div style="width:28px;"></div>
+  </div>
+
+  <!-- SIDEBAR -->
+  <aside id="sidebar" class="w-72 glass h-screen flex flex-col p-5 border-r border-white/5" style="position:fixed;top:0;left:0;height:100vh;z-index:40;transition:transform .3s ease;">
+    <div class="flex items-center gap-3 mb-6">
+      <div class="w-10 h-10 bg-sky-500 rounded-xl flex items-center justify-center shadow-[0_0_20px_rgba(56,189,248,0.3)]">
+        <svg class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+        </svg>
+      </div>
+      <div>
+        <h2 class="font-orbitron font-bold text-base tracking-tighter">REPRESENTA</h2>
+        <p class="text-[9px] text-sky-400 tracking-[0.3em] uppercase">MKSys</p>
+      </div>
+    </div>
+
+    {% set p = session.get('usuario_perfil','') %}
+    {% set is_admin = (p == 'admin') %}
+    {% set is_ger   = (p == 'administrativo') %}
+    {% set perms    = (session.get('usuario_permissoes','') or '') | from_json %}
+    {% macro pode(mod) %}{{ 'S' if is_admin or (is_ger and mod != 'usuarios') or ('ver' in (perms.get(mod,[]) if perms else [])) }}{% endmacro %}
+    {% macro link(ep, cls_match, label, svg) %}
+    <a href="{{ url_for(ep) }}"
+       class="flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all {{ 'active-menu' if cls_match else 'text-slate-500 hover:text-white hover:bg-white/5' }}">
+      {{ svg | safe }}<span class="font-semibold text-sm uppercase tracking-wide">{{ label }}</span>
+    </a>
+    {% endmacro %}
+    <nav class="flex flex-col gap-1 flex-1">
+      {{ link('dashboard', request.endpoint=='dashboard', 'Dashboard',
+         '<svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>') }}
+      {% if pode('clientes') == 'S' %}
+      {{ link('clientes', 'clientes' in (request.endpoint or '') or 'pf_' in (request.endpoint or '') or 'pj_' in (request.endpoint or ''), 'Clientes',
+         '<svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>') }}
+      {% endif %}
+      {% if pode('pedidos') == 'S' %}
+      {{ link('pedidos', 'pedido' in (request.endpoint or ''), 'Pedidos',
+         '<svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>') }}
+      {% endif %}
+      {% if pode('produtos') == 'S' %}
+      {{ link('produtos', 'produto' in (request.endpoint or ''), 'Produtos',
+         '<svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>') }}
+      {% endif %}
+      {% if pode('fornecedores') == 'S' %}
+      {{ link('fornecedores', 'fornecedor' in (request.endpoint or ''), 'Fornecedores',
+         '<svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>') }}
+      {% endif %}
+      {% if pode('financeiro') == 'S' %}
+      {{ link('financeiro', 'financeiro' in (request.endpoint or '') or 'receber' in (request.endpoint or '') or 'pagar' in (request.endpoint or ''), 'Financeiro',
+         '<svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>') }}
+      {% endif %}
+      {% if pode('relatorios') == 'S' %}
+      {{ link('relatorios', 'relatorio' in (request.endpoint or ''), 'Relatórios',
+         '<svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>') }}
+      {% endif %}
+      {% if pode('usuarios') == 'S' %}
+      {{ link('usuarios', 'usuario' in (request.endpoint or ''), 'Usuários',
+         '<svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>') }}
+      {% endif %}
+    </nav>
+
+    <div class="mt-auto flex flex-col gap-2">
+      <a href="{{ url_for('meu_perfil') }}"
+         style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:12px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);color:#94a3b8;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;text-decoration:none;transition:all .2s;"
+         onmouseover="this.style.background='rgba(56,189,248,0.08)';this.style.color='#e2e8f0'"
+         onmouseout="this.style.background='rgba(255,255,255,0.03)';this.style.color='#94a3b8'">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+        Meu Perfil
+      </a>
+      <a href="{{ url_for('logout') }}"
+         style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:12px;background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.15);color:#f87171;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;text-decoration:none;transition:all .2s;"
+         onmouseover="this.style.background='rgba(239,68,68,0.12)'"
+         onmouseout="this.style.background='rgba(239,68,68,0.06)'">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+        Sair
+      </a>
+      <div class="p-3 glass rounded-xl border border-sky-500/20 text-center">
+        <p class="text-[10px] text-slate-500 uppercase tracking-widest mb-1">{{ session.get('usuario_nome','—') }}</p>
+        <p class="text-xs font-bold text-sky-400 font-orbitron">ONLINE</p>
+      </div>
+    </div>
+  </aside>
+
+  <!-- CONTEÚDO -->
+  <div id="main-content" class="flex-1 flex flex-col min-w-0" style="margin-left:288px;">
+    <header id="main-header" class="flex justify-between items-center pb-4" style="padding-left:48px;padding-right:48px;padding-top:40px;">
+      <div>
+        <h2 class="text-3xl font-light">{% block header_title %}Sistema <span class="font-bold text-sky-400">MKS</span>{% endblock %}</h2>
+        <p class="text-slate-500 text-sm mt-1">{% block header_sub %}{% endblock %}</p>
+      </div>
+      <div class="flex items-center gap-6"></div>
+    </header>
+
+    <main id="main-area" class="flex-1 overflow-hidden page-fade" style="display:flex;flex-direction:column;padding:0 48px 48px 48px;">
+      {% with msgs = get_flashed_messages(with_categories=True) %}
+        {% for cat, msg in msgs %}
+          <div class="{{ 'flash-ok' if cat == 'ok' else 'flash-erro' }} rounded-2xl px-5 py-3 mb-6 text-sm font-semibold">{{ msg }}</div>
+        {% endfor %}
+      {% endwith %}
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+
+  <script>
+  const MOBILE_BP = 768;
+
+  function isMobile() { return window.innerWidth < MOBILE_BP; }
+
+  function aplicarLayout() {
+    const sidebar      = document.getElementById('sidebar');
+    const topbar       = document.getElementById('mobile-topbar');
+    const mainContent  = document.getElementById('main-content');
+    const mainHeader   = document.getElementById('main-header');
+    const mainArea     = document.getElementById('main-area');
+
+    if (isMobile()) {
+      // Mobile: sidebar oculto por padrão, topbar visível, sem margem
+      sidebar.style.transform = sidebar.classList.contains('open') ? 'translateX(0)' : 'translateX(-100%)';
+      topbar.style.display    = 'flex';
+      mainContent.style.marginLeft = '0';
+      mainHeader.style.padding = '72px 20px 16px 20px';
+      mainArea.style.padding   = '0 20px 32px 20px';
+    } else {
+      // Desktop: sidebar sempre visível, topbar oculta
+      sidebar.style.transform = 'translateX(0)';
+      topbar.style.display    = 'none';
+      document.getElementById('menu-overlay').style.display = 'none';
+      sidebar.classList.remove('open');
+      mainContent.style.marginLeft = '288px';
+      mainHeader.style.padding = '40px 48px 16px 48px';
+      mainArea.style.padding   = '0 48px 48px 48px';
+    }
+  }
+
+  function abrirMenu() {
+    document.getElementById('sidebar').classList.add('open');
+    document.getElementById('sidebar').style.transform = 'translateX(0)';
+    document.getElementById('menu-overlay').style.display = 'block';
+  }
+
+  function fecharMenu() {
+    document.getElementById('sidebar').classList.remove('open');
+    document.getElementById('sidebar').style.transform = 'translateX(-100%)';
+    document.getElementById('menu-overlay').style.display = 'none';
+  }
+
+  // Aplicar imediatamente e ao redimensionar
+  aplicarLayout();
+  window.addEventListener('resize', aplicarLayout);
+
+  document.addEventListener('DOMContentLoaded', () => {
+    aplicarLayout();
+    document.querySelectorAll('#sidebar a').forEach(a => {
+      a.addEventListener('click', () => { if (isMobile()) fecharMenu(); });
+    });
+  });
+  </script>
+  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+  {% block scripts %}{% endblock %}
+  <!-- Aviso de inatividade -->
+  <div id="aviso-inatividade" style="display:none;position:fixed;bottom:20px;right:20px;z-index:999;background:rgba(251,191,36,0.12);border:1px solid rgba(251,191,36,0.3);border-radius:16px;padding:14px 20px;max-width:280px;backdrop-filter:blur(10px);">
+    <p style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#fbbf24;margin-bottom:4px;">⏱ Sessão expirando</p>
+    <p style="font-size:12px;color:#94a3b8;">Você será desconectado em <strong id="conta-regressiva" style="color:#fbbf24;"></strong></p>
+    <button onclick="resetarInatividade()" style="margin-top:10px;width:100%;background:rgba(251,191,36,0.15);border:1px solid rgba(251,191,36,0.3);color:#fbbf24;border-radius:8px;padding:7px;font-family:inherit;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;">Continuar conectado</button>
+  </div>
+
+  <script>
+  // Timeout de inatividade: 30 minutos, avisa nos últimos 2 min
+  const TIMEOUT_MS   = 30 * 60 * 1000;
+  const AVISO_MS     = 2  * 60 * 1000;
+  let   timerTimeout, timerAviso, timerContagem;
+  let   ultimaAtividade = Date.now();
+
+  function resetarInatividade() {
+    ultimaAtividade = Date.now();
+    document.getElementById('aviso-inatividade').style.display = 'none';
+    clearTimeout(timerTimeout);
+    clearTimeout(timerAviso);
+    clearInterval(timerContagem);
+    iniciarTimers();
+    // Ping ao servidor para renovar sessão
+    fetch('/api/ping').catch(()=>{});
+  }
+
+  function mostrarAviso() {
+    const aviso = document.getElementById('aviso-inatividade');
+    aviso.style.display = 'block';
+    let segundos = Math.floor(AVISO_MS / 1000);
+    const cr = document.getElementById('conta-regressiva');
+    timerContagem = setInterval(() => {
+      segundos--;
+      const m = Math.floor(segundos / 60);
+      const s = segundos % 60;
+      cr.textContent = m > 0 ? `${m}m ${s.toString().padStart(2,'0')}s` : `${segundos}s`;
+      if (segundos <= 0) clearInterval(timerContagem);
+    }, 1000);
+    cr.textContent = '2m 00s';
+    timerTimeout = setTimeout(() => { window.location.href = '/logout'; }, AVISO_MS);
+  }
+
+  function iniciarTimers() {
+    timerAviso = setTimeout(mostrarAviso, TIMEOUT_MS - AVISO_MS);
+  }
+
+  // Reinicia ao detectar qualquer atividade
+  ['mousemove','keydown','click','scroll','touchstart'].forEach(ev => {
+    document.addEventListener(ev, () => {
+      const agora = Date.now();
+      if (agora - ultimaAtividade > 30000) { // só reseta se passou 30s desde último reset
+        resetarInatividade();
+      }
+    }, { passive: true });
+  });
+
+  iniciarTimers();
+  </script>
+
+</body>
+</html>

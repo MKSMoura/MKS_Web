@@ -1,0 +1,411 @@
+{% extends "base.html" %}
+{% block title %}{{ pedido.numero if pedido else 'Novo Pedido' }}{% endblock %}
+
+{% block header_title %}
+  <a href="/pedidos" class="btn-voltar text-[10px] bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white px-3 py-1.5 rounded-lg font-bold uppercase tracking-widest border border-white/5 transition-all mr-3 align-middle">←</a>
+  {% if modo == 'novo' %}Novo <span class="font-bold text-sky-400">Pedido</span>
+  {% elif modo == 'editar' %}Editar <span class="font-bold text-sky-400">{{ pedido.numero }}</span>
+  {% else %}
+    <span class="font-bold text-sky-400">{{ pedido.numero }}</span>
+    {% set sc = {'aberto':'bg-sky-500/10 text-sky-400 border-sky-500/20','faturado':'bg-green-500/10 text-green-400 border-green-500/20','cancelado':'bg-rose-500/10 text-rose-400 border-rose-500/20'} %}
+    <span class="text-[10px] border px-3 py-1.5 rounded-lg font-bold uppercase tracking-widest ml-3 align-middle {{ sc.get(pedido.status,'bg-slate-500/10 text-slate-400 border-slate-500/20') }}">{{ pedido.status }}</span>
+    <a href="{{ url_for('pedido_editar', pid=pedido.id) }}" class="text-[10px] bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 px-3 py-1.5 rounded-lg font-bold uppercase tracking-widest border border-sky-500/20 transition-all ml-3 align-middle">✏ Editar</a>
+  {% endif %}
+{% endblock %}
+{% block header_sub %}{% if pedido %}{{ pedido.data_pedido | fmt_data }}  ·  {{ pedido.hora_pedido }}{% else %}Cadastro de Pedido{% endif %}{% endblock %}
+
+{% set ver = (modo == 'ver') %}
+{% set inp = 'glass bg-transparent w-full px-4 py-3 rounded-xl outline-none focus:ring-1 ring-sky-500/50 text-sm' %}
+{% set inp_ro = 'bg-white/3 border border-white/5 w-full px-4 py-3 rounded-xl text-sm text-slate-400 cursor-default' %}
+{% set inp_n = inp_ro if ver else inp %}
+
+{% block head %}
+<style>
+  main { overflow-y: auto !important; }
+  textarea.auto-resize { overflow:hidden; resize:none; min-height:44px; }
+  .item-row input { background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:10px;color:#f8fafc;font-family:inherit;font-size:.8rem;padding:8px 10px;outline:none;width:100%;transition:border-color .2s; }
+  .item-row input:focus { border-color:rgba(56,189,248,0.5); }
+  .item-row input[readonly] { color:#94a3b8;cursor:default; }
+  .autocomplete-list { position:absolute;top:100%;left:0;right:0;background:#0d1b2e;border:1px solid rgba(56,189,248,0.2);border-radius:12px;z-index:100;max-height:220px;overflow-y:auto;margin-top:4px; }
+  .autocomplete-list div { padding:10px 14px;cursor:pointer;font-size:.8rem;border-bottom:1px solid rgba(255,255,255,0.05); }
+  .autocomplete-list div:hover,.autocomplete-list div.active { background:rgba(56,189,248,0.1);color:#38bdf8; }
+</style>
+{% endblock %}
+
+{% block content %}
+<form id="form-pedido" method="post"
+      action="{{ url_for('pedido_editar', pid=pedido.id) if modo=='editar' else url_for('pedido_novo') }}"
+      class="space-y-5 pb-8">
+
+  <!-- IDENTIFICAÇÃO + VENDEDOR + CLIENTE numa linha -->
+  <div class="glass p-7 rounded-[2rem]">
+    <p class="text-[10px] uppercase tracking-widest text-sky-400 mb-5 font-bold">Identificação</p>
+    <div class="flex flex-col md:flex-row gap-4 mb-4">
+      <div class="flex flex-col gap-2" style="flex:0 0 160px">
+        <label class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Número</label>
+        <input type="text" value="{{ pedido.numero if pedido else '(gerado)' }}" class="{{ inp_ro }}" readonly>
+      </div>
+      <div class="flex flex-col gap-2" style="flex:0 0 150px">
+        <label class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Data</label>
+        <input type="text" value="{{ pedido.data_pedido | fmt_data if pedido and pedido.data_pedido else '' }}" class="{{ inp_ro }}" readonly>
+      </div>
+      <div class="flex flex-col gap-2" style="flex:0 0 110px">
+        <label class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Hora</label>
+        <input type="text" value="{{ pedido.hora_pedido if pedido else '' }}" class="{{ inp_ro }}" readonly>
+      </div>
+      <div class="flex flex-col gap-2" style="flex:0 0 160px">
+        <label class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Status</label>
+        {% if ver %}
+        <input type="text" value="{{ pedido.status if pedido else 'aberto' }}" class="{{ inp_ro }}" readonly>
+        {% else %}
+        <select name="status" class="{{ inp }}">
+          {% for s in ['aberto','faturado','cancelado'] %}
+          <option value="{{ s }}" {{ 'selected' if pedido and pedido.status==s }}>{{ s|capitalize }}</option>
+          {% endfor %}
+        </select>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Vendedor -->
+    <p class="text-[10px] uppercase tracking-widest text-sky-400 mb-3 font-bold mt-2">Vendedor</p>
+    <div class="flex flex-col md:flex-row gap-4 mb-4">
+      <div class="flex flex-col gap-2" style="flex:0 0 160px">
+        <label class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Código</label>
+        <input type="text" name="cod_vendedor" value="{{ pedido.cod_vendedor if pedido else '' }}"
+               placeholder="VND-001" class="{{ inp_n }}" {{ 'readonly' if ver }}>
+      </div>
+      <div class="flex flex-col gap-2" style="flex:1">
+        <label class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Nome</label>
+        <input type="text" name="nome_vendedor" value="{{ pedido.nome_vendedor if pedido else '' }}"
+               placeholder="Nome do vendedor" class="{{ inp_n }}" {{ 'readonly' if ver }}>
+      </div>
+    </div>
+
+    <!-- Cliente -->
+    <p class="text-[10px] uppercase tracking-widest text-sky-400 mb-3 font-bold mt-2">Cliente</p>
+    <div class="flex flex-col md:flex-row gap-4">
+      <div class="flex flex-col gap-2" style="flex:0 0 120px">
+        <label class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Código</label>
+        <input type="text" id="cod_cliente" name="cod_cliente"
+               value="{{ pedido.cod_cliente if pedido else '' }}"
+               placeholder="ID" class="{{ inp_n }}" {{ 'readonly' if ver }}>
+      </div>
+      <div class="flex flex-col gap-2" style="flex:2;position:relative;">
+        <label class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Nome</label>
+        <input type="text" id="nome_cliente" name="nome_cliente"
+               value="{{ pedido.nome_cliente if pedido else '' }}"
+               placeholder="Digite para buscar cliente..." autocomplete="off"
+               class="{{ inp_n }}" {{ 'readonly' if ver }}>
+        {% if not ver %}<div id="ac-cliente" class="autocomplete-list" style="display:none;"></div>{% endif %}
+      </div>
+      <div class="flex flex-col gap-2" style="flex:1">
+        <label class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">CPF/CNPJ</label>
+        <input type="text" id="cpf_cnpj" name="cpf_cnpj"
+               value="{{ pedido.cpf_cnpj if pedido else '' }}"
+               placeholder="000.000.000-00" class="{{ inp_n }}" {{ 'readonly' if ver }}>
+      </div>
+    </div>
+  </div>
+
+  <!-- ITENS -->
+  <div class="glass p-7 rounded-[2rem]">
+    <p class="text-[10px] uppercase tracking-widest text-sky-400 mb-5 font-bold">Itens do Pedido</p>
+
+    <!-- cabeçalho -->
+    <div class="hidden md:grid text-[9px] uppercase tracking-widest text-slate-600 font-bold mb-2" style="grid-template-columns:120px 1fr 80px 60px 110px 110px 36px;gap:8px;padding:0 4px;">
+      <span>SKU</span><span>Produto</span><span>Qtd</span><span>Un</span><span>Unitário</span><span>Total</span><span></span>
+    </div>
+
+    <div id="itens-container" class="space-y-2">
+      {% for it in itens %}
+      <div class="item-row" style="display:grid;grid-template-columns:120px 1fr 80px 60px 110px 110px 36px;gap:8px;align-items:center;">
+        <input type="text" name="item_{{ loop.index }}_sku"   value="{{ it.sku }}"          placeholder="SKU"      {{ 'readonly' if ver }}>
+        <div style="position:relative;">
+          <input type="text" name="item_{{ loop.index }}_nome" value="{{ it.nome_produto }}" placeholder="Produto..."  autocomplete="off" class="item-nome" data-idx="{{ loop.index }}" {{ 'readonly' if ver }}>
+          {% if not ver %}<div class="ac-produto autocomplete-list" style="display:none;"></div>{% endif %}
+        </div>
+        <input type="text" name="item_{{ loop.index }}_qtd"      value="{{ it.quantidade }}"     placeholder="0"   class="item-qtd"  data-idx="{{ loop.index }}" inputmode="decimal" {{ 'readonly' if ver }}>
+        <input type="text" name="item_{{ loop.index }}_unidade"  value="{{ it.unidade }}"         placeholder="UN"                                                                    {{ 'readonly' if ver }}>
+        <input type="text" name="item_{{ loop.index }}_unitario" value="{{ '%.2f'|format(it.valor_unitario|float) }}" placeholder="0,00" class="item-unit" data-idx="{{ loop.index }}" inputmode="decimal" {{ 'readonly' if ver }}>
+        <input type="text" name="item_{{ loop.index }}_total"    value="{{ '%.2f'|format(it.valor_total|float) }}"   placeholder="0,00" class="item-tot"  data-idx="{{ loop.index }}" readonly style="color:#38bdf8;font-weight:700;">
+        {% if not ver %}
+        <button type="button" onclick="remItem(this)" style="background:transparent;border:none;color:rgba(248,113,113,0.5);cursor:pointer;font-size:18px;padding:0;line-height:1;" onmouseover="this.style.color='#f87171'" onmouseout="this.style.color='rgba(248,113,113,0.5)'">✕</button>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+
+    {% if not ver %}
+    <button type="button" onclick="addItem()"
+            style="margin-top:12px;width:100%;padding:10px;background:transparent;border:1px dashed rgba(56,189,248,0.3);border-radius:12px;color:#38bdf8;font-family:inherit;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;transition:all .2s;"
+            onmouseover="this.style.borderColor='rgba(56,189,248,0.6)'"
+            onmouseout="this.style.borderColor='rgba(56,189,248,0.3)'">+ Adicionar Item</button>
+    {% endif %}
+  </div>
+
+  <!-- TOTAIS -->
+  <div class="glass p-7 rounded-[2rem]">
+    <p class="text-[10px] uppercase tracking-widest text-sky-400 mb-5 font-bold">Totais</p>
+    <div class="flex flex-col md:flex-row gap-4 mb-4">
+      <div class="flex flex-col gap-2" style="flex:1">
+        <label class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Subtotal</label>
+        <div style="position:relative;">
+          <span style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:.8rem;pointer-events:none;">R$</span>
+          <input type="text" id="subtotal" readonly value="{{ '%.2f'|format(pedido.subtotal|float) if pedido else '0.00' }}"
+                 class="{{ inp_ro }}" style="padding-left:32px;color:#38bdf8;font-weight:700;">
+        </div>
+      </div>
+      <div class="flex flex-col gap-2" style="flex:1">
+        <label class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Desconto</label>
+        <div style="position:relative;">
+          <span style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:.8rem;pointer-events:none;">R$</span>
+          <input type="text" id="desconto" name="desconto" inputmode="decimal"
+                 value="{{ '%.2f'|format(pedido.desconto|float) if pedido else '' }}"
+                 placeholder="0,00" oninput="recalcTotais()"
+                 class="{{ inp_n }}" style="padding-left:32px;" {{ 'readonly' if ver }}>
+        </div>
+      </div>
+      <div class="flex flex-col gap-2" style="flex:1">
+        <label class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Acréscimo</label>
+        <div style="position:relative;">
+          <span style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:.8rem;pointer-events:none;">R$</span>
+          <input type="text" id="acrescimo" name="acrescimo" inputmode="decimal"
+                 value="{{ '%.2f'|format(pedido.acrescimo|float) if pedido else '' }}"
+                 placeholder="0,00" oninput="recalcTotais()"
+                 class="{{ inp_n }}" style="padding-left:32px;" {{ 'readonly' if ver }}>
+        </div>
+      </div>
+      <div class="flex flex-col gap-2" style="flex:1">
+        <label class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Total Final</label>
+        <div style="position:relative;">
+          <span style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:.8rem;pointer-events:none;">R$</span>
+          <input type="text" id="total_final" readonly value="{{ '%.2f'|format(pedido.total|float) if pedido else '0.00' }}"
+                 class="{{ inp_ro }}" style="padding-left:32px;color:#4ade80;font-weight:700;font-size:1rem;">
+        </div>
+      </div>
+    </div>
+    <div class="flex flex-col gap-2" style="max-width:300px;">
+      <label class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Forma de Pagamento</label>
+      {% if ver %}
+      <input type="text" value="{{ pedido.forma_pagamento if pedido else '' }}" class="{{ inp_ro }}" readonly>
+      {% else %}
+      <select name="forma_pagamento" class="{{ inp }}">
+        {% set fp = pedido.forma_pagamento if pedido else '' %}
+        {% for op in ['Dinheiro','Cartão Débito','Cartão Crédito','PIX','Boleto','Transferência','A prazo'] %}
+        <option value="{{ op }}" {{ 'selected' if op == fp }}>{{ op }}</option>
+        {% endfor %}
+      </select>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- CONTROLE -->
+  <div class="glass p-7 rounded-[2rem]">
+    <p class="text-[10px] uppercase tracking-widest text-sky-400 mb-5 font-bold">Controle</p>
+    <div class="flex flex-col gap-2 mb-4">
+      <label class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Observações</label>
+      <textarea name="observacoes" rows="1" class="auto-resize {{ inp_n }}" {{ 'readonly' if ver }}
+                placeholder="Observações...">{{ pedido.observacoes if pedido else '' }}</textarea>
+    </div>
+    <div class="flex flex-col md:flex-row gap-4 mb-4">
+      <div class="flex flex-col gap-2" style="flex:1">
+        <label class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Usuário criou</label>
+        <input type="text" name="usuario_criou" value="{{ pedido.usuario_criou if pedido else '' }}"
+               placeholder="Usuário" class="{{ inp_n }}" {{ 'readonly' if ver }}>
+      </div>
+      <div class="flex flex-col gap-2" style="flex:1">
+        <label class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Usuário alterou</label>
+        <input type="text" name="usuario_alterou" value="{{ pedido.usuario_alterou if pedido else '' }}"
+               placeholder="Usuário" class="{{ inp_n }}" {{ 'readonly' if ver }}>
+      </div>
+      {% if pedido %}
+      <div class="flex flex-col gap-2" style="flex:1">
+        <label class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Criado em</label>
+        <input type="text" value="{{ pedido.data_criacao | fmt_data_hora if pedido.data_criacao else '—' }}" class="{{ inp_ro }}" readonly>
+      </div>
+      <div class="flex flex-col gap-2" style="flex:1">
+        <label class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Atualizado em</label>
+        <input type="text" value="{{ pedido.data_atualizacao | fmt_data_hora if pedido.data_atualizacao else '—' }}" class="{{ inp_ro }}" readonly>
+      </div>
+      {% endif %}
+    </div>
+    {% if pedido and pedido.log_alteracoes %}
+    <div class="flex flex-col gap-2">
+      <label class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Log de Alterações</label>
+      <textarea readonly class="{{ inp_ro }} auto-resize" style="font-family:monospace;font-size:.75rem;color:#64748b;">{{ pedido.log_alteracoes }}</textarea>
+    </div>
+    {% endif %}
+  </div>
+
+  {% if not ver %}
+  <div class="flex justify-between gap-4 pt-1">
+    <a href="javascript:history.back()" class="bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white px-6 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest border border-white/5 transition-all">← Voltar</a>
+    <div class="flex gap-4">
+      <a href="javascript:history.back()" class="bg-white/5 hover:bg-white/10 text-slate-400 px-6 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest border border-white/5 transition-all">Cancelar</a>
+      <button type="submit" class="bg-sky-500 hover:bg-sky-400 text-white px-8 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all shadow-[0_0_20px_rgba(56,189,248,0.2)]">💾 Salvar</button>
+    </div>
+  </div>
+  {% endif %}
+
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const VER = {{ 'true' if ver else 'false' }};
+let itemCount = {{ itens|length }};
+
+// ── Itens dinâmicos ──────────────────────────────────────────
+function addItem() {
+  itemCount++;
+  const idx = itemCount;
+  const INP = 'background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:10px;color:#f8fafc;font-family:inherit;font-size:.8rem;padding:8px 10px;outline:none;width:100%;transition:border-color .2s;';
+  const row = document.createElement('div');
+  row.className = 'item-row';
+  row.style.cssText = 'display:grid;grid-template-columns:120px 1fr 80px 60px 110px 110px 36px;gap:8px;align-items:center;';
+  row.innerHTML = `
+    <input type="text" name="item_${idx}_sku"      placeholder="SKU"      style="${INP}" oninput="this.value=this.value.toUpperCase()">
+    <div style="position:relative;">
+      <input type="text" name="item_${idx}_nome"     placeholder="Produto..." style="${INP}" autocomplete="off" class="item-nome" data-idx="${idx}" oninput="acProduto(this)">
+      <div class="ac-produto autocomplete-list" style="display:none;"></div>
+    </div>
+    <input type="text" name="item_${idx}_qtd"       placeholder="0"        style="${INP}" class="item-qtd"  data-idx="${idx}" inputmode="decimal" oninput="calcItem(${idx})">
+    <input type="text" name="item_${idx}_unidade"   placeholder="UN"       style="${INP}" value="UN">
+    <input type="text" name="item_${idx}_unitario"  placeholder="0,00"     style="${INP}" class="item-unit" data-idx="${idx}" inputmode="decimal" oninput="calcItem(${idx})">
+    <input type="text" name="item_${idx}_total"     placeholder="0,00"     style="${INP};color:#38bdf8;font-weight:700;" class="item-tot" data-idx="${idx}" readonly>
+    <button type="button" onclick="remItem(this)" style="background:transparent;border:none;color:rgba(248,113,113,0.5);cursor:pointer;font-size:18px;padding:0;line-height:1;" onmouseover="this.style.color='#f87171'" onmouseout="this.style.color='rgba(248,113,113,0.5)'">✕</button>
+  `;
+  document.getElementById('itens-container').appendChild(row);
+  row.querySelector('.item-nome').focus();
+}
+
+function remItem(btn) {
+  btn.closest('.item-row').remove();
+  recalcTotais();
+}
+
+function calcItem(idx) {
+  const qtd  = parseFloat(document.querySelector(`.item-qtd[data-idx="${idx}"]`)?.value.replace(',','.')) || 0;
+  const unit = parseFloat(document.querySelector(`.item-unit[data-idx="${idx}"]`)?.value.replace(',','.')) || 0;
+  const tot  = document.querySelector(`.item-tot[data-idx="${idx}"]`);
+  if (tot) tot.value = (qtd * unit).toFixed(2);
+  recalcTotais();
+}
+
+function recalcTotais() {
+  let sub = 0;
+  document.querySelectorAll('.item-tot').forEach(el => { sub += parseFloat(el.value) || 0; });
+  const desc = parseFloat(document.getElementById('desconto')?.value.replace(',','.')) || 0;
+  const acre = parseFloat(document.getElementById('acrescimo')?.value.replace(',','.')) || 0;
+  const total = sub - desc + acre;
+  document.getElementById('subtotal').value    = sub.toFixed(2);
+  document.getElementById('total_final').value = total.toFixed(2);
+  document.getElementById('total_final').style.color = total < 0 ? '#f87171' : '#4ade80';
+}
+
+// Inicializar calc nos itens existentes
+document.querySelectorAll('.item-qtd').forEach(el => {
+  const idx = el.dataset.idx;
+  el.addEventListener('input', () => calcItem(idx));
+});
+document.querySelectorAll('.item-unit').forEach(el => {
+  const idx = el.dataset.idx;
+  el.addEventListener('input', () => calcItem(idx));
+});
+
+// ── Autocomplete Cliente ─────────────────────────────────────
+const nomeClienteEl = document.getElementById('nome_cliente');
+const acClienteEl   = document.getElementById('ac-cliente');
+
+if (nomeClienteEl && acClienteEl) {
+  let timer;
+  nomeClienteEl.addEventListener('input', function() {
+    clearTimeout(timer);
+    const q = this.value.trim();
+    if (q.length < 2) { acClienteEl.style.display='none'; return; }
+    timer = setTimeout(async () => {
+      const res = await fetch('/api/busca-cliente?q=' + encodeURIComponent(q));
+      const data = await res.json();
+      if (!data.length) { acClienteEl.style.display='none'; return; }
+      acClienteEl.innerHTML = data.map((c,i) =>
+        `<div data-id="${c.id}" data-nome="${c.nome}" data-doc="${c.doc}">${c.nome} <span style="color:#64748b;font-size:.75rem;">${c.doc}</span></div>`
+      ).join('');
+      acClienteEl.style.display = 'block';
+      acClienteEl.querySelectorAll('div').forEach(d => {
+        d.addEventListener('click', () => {
+          document.getElementById('nome_cliente').value = d.dataset.nome;
+          document.getElementById('cod_cliente').value  = d.dataset.id;
+          document.getElementById('cpf_cnpj').value     = d.dataset.doc;
+          acClienteEl.style.display = 'none';
+        });
+      });
+    }, 300);
+  });
+  document.addEventListener('click', e => { if (!nomeClienteEl.contains(e.target)) acClienteEl.style.display='none'; });
+}
+
+// ── Autocomplete Produto nos itens ───────────────────────────
+function acProduto(el) {
+  const ac = el.parentElement.querySelector('.ac-produto');
+  const q = el.value.trim();
+  if (q.length < 2) { ac.style.display='none'; return; }
+  clearTimeout(el._t);
+  el._t = setTimeout(async () => {
+    const res = await fetch('/api/busca-produto?q=' + encodeURIComponent(q));
+    const data = await res.json();
+    if (!data.length) { ac.style.display='none'; return; }
+    ac.innerHTML = data.map(p =>
+      `<div data-sku="${p.sku}" data-nome="${p.nome}" data-preco="${p.preco}" data-un="${p.unidade}">${p.nome} <span style="color:#64748b;font-size:.75rem;">${p.sku} · R$ ${p.preco.toFixed(2)}</span></div>`
+    ).join('');
+    ac.style.display = 'block';
+    ac.querySelectorAll('div').forEach(d => {
+      d.addEventListener('click', () => {
+        const row  = el.closest('.item-row');
+        const idx  = el.dataset.idx;
+        // Preencher SKU
+        const skuEl = row.querySelector(`input[name$="_sku"]`);
+        if (skuEl) skuEl.value = d.dataset.sku;
+        el.value = d.dataset.nome;
+        // Unidade
+        const unEl = row.querySelector(`input[name$="_unidade"]`);
+        if (unEl) unEl.value = d.dataset.un;
+        // Unitário
+        const unitEl = row.querySelector('.item-unit');
+        if (unitEl) { unitEl.value = parseFloat(d.dataset.preco).toFixed(2); }
+        ac.style.display = 'none';
+        if (idx) calcItem(idx);
+        // Focar qtd
+        const qtdEl = row.querySelector('.item-qtd');
+        if (qtdEl) qtdEl.focus();
+      });
+    });
+  }, 250);
+}
+document.addEventListener('click', e => {
+  document.querySelectorAll('.ac-produto').forEach(ac => {
+    if (!ac.parentElement.contains(e.target)) ac.style.display='none';
+  });
+});
+
+// Textarea auto-resize
+document.querySelectorAll('textarea.auto-resize').forEach(el => {
+  const r = () => { el.style.height='auto'; el.style.height=el.scrollHeight+'px'; };
+  el.addEventListener('input', r); r();
+});
+
+fixInputStyles();
+recalcTotais();
+</script>
+<script>
+(function(){
+  var saved = sessionStorage.getItem('busca_pedidos');
+  var voltarBtns = document.querySelectorAll('.btn-voltar');
+  voltarBtns.forEach(function(btn){
+    if(saved !== null) {
+      btn.href = '/pedidos' + (saved ? '?q=' + encodeURIComponent(saved) : '');
+    }
+  });
+})();
+</script>
+{% endblock %}

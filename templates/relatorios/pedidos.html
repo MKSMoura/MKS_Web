@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block title %}Relatório de Pedidos{% endblock %}
+{% block header_title %}Relatório de <span class="font-bold text-sky-400">Pedidos</span>{% endblock %}
+{% block header_sub %}{% if not relatorio_completo %}Apenas seus pedidos{% else %}Todos os vendedores{% endif %}{% endblock %}
+{% block head %}
+<style>
+main { overflow-y: auto !important; }
+@media print {
+  .no-print { display: none !important; }
+  body { background: #fff; color: #000; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Filtros -->
+<form id="filtros-bar" class="no-print" method="get" action="{{ url_for('relatorio_pedidos') }}">
+  <div class="glass p-5 rounded-[2rem] mb-5 flex flex-wrap gap-3 items-end">
+    <div class="flex flex-col gap-1">
+      <label class="text-[9px] uppercase tracking-widest text-slate-500 font-bold">De</label>
+      <input type="date" name="data_ini" value="{{ filtros.data_ini }}"
+             class="glass bg-transparent px-3 py-2 rounded-xl outline-none focus:ring-1 ring-sky-500/50 text-sm" style="color:#f8fafc;">
+    </div>
+    <div class="flex flex-col gap-1">
+      <label class="text-[9px] uppercase tracking-widest text-slate-500 font-bold">Até</label>
+      <input type="date" name="data_fim" value="{{ filtros.data_fim }}"
+             class="glass bg-transparent px-3 py-2 rounded-xl outline-none focus:ring-1 ring-sky-500/50 text-sm" style="color:#f8fafc;">
+    </div>
+    <div class="flex flex-col gap-1">
+      <label class="text-[9px] uppercase tracking-widest text-slate-500 font-bold">Status</label>
+      <select name="status" class="px-3 py-2 rounded-xl text-sm" style="min-width:130px;">
+        <option value="">Todos</option>
+        {% for s in ['aberto','faturado','cancelado'] %}
+        <option value="{{ s }}" {{ 'selected' if filtros.status==s }}>{{ s|capitalize }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    {% if relatorio_completo %}
+    <div class="flex flex-col gap-1">
+      <label class="text-[9px] uppercase tracking-widest text-slate-500 font-bold">Vendedor</label>
+      <input type="text" name="vendedor" value="{{ filtros.vendedor }}" placeholder="Nome do vendedor..."
+             class="glass bg-transparent px-3 py-2 rounded-xl outline-none focus:ring-1 ring-sky-500/50 text-sm" style="color:#f8fafc;min-width:180px;">
+    </div>
+    {% endif %}
+    <button type="submit" class="bg-sky-500 hover:bg-sky-400 text-white px-5 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all">Filtrar</button>
+    <a href="{{ url_for('relatorio_pedidos') }}" class="glass px-5 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest text-slate-400 hover:text-white transition-all">Limpar</a>
+    <button type="button" onclick="window.print()" class="ml-auto glass px-5 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest text-slate-400 hover:text-white transition-all">🖨 Imprimir</button>
+  </div>
+</form>
+
+<!-- Totalizadores -->
+<div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
+  {% for label, val, cor in [
+    ('Pedidos', totais.qtd, '#38bdf8'),
+    ('Subtotal', 'R$ %.2f'|format(totais.subtotal), '#a78bfa'),
+    ('Descontos', 'R$ %.2f'|format(totais.desconto), '#f87171'),
+    ('Total', 'R$ %.2f'|format(totais.total), '#4ade80'),
+  ] %}
+  <div class="glass p-4 rounded-2xl text-center">
+    <p class="text-[9px] uppercase tracking-widest text-slate-500 mb-1">{{ label }}</p>
+    <p class="font-bold font-mono" style="color:{{ cor }};font-size:{{ '1.1rem' if loop.index > 1 else '1.4rem' }};">{{ val }}</p>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Tabela -->
+<div class="glass rounded-[2rem]" style="overflow-x:auto;">
+  <table class="w-full text-left text-xs">
+    <thead style="background:#0d1b2e;position:sticky;top:0;" class="text-slate-500 uppercase text-[9px] tracking-widest">
+      <tr>
+        <th class="p-4">Número</th>
+        <th class="p-4">Data</th>
+        <th class="p-4">Cliente</th>
+        {% if relatorio_completo %}<th class="p-4">Vendedor</th>{% endif %}
+        <th class="p-4 text-right">Subtotal</th>
+        <th class="p-4 text-right">Desconto</th>
+        <th class="p-4 text-right">Total</th>
+        <th class="p-4">Pagamento</th>
+        <th class="p-4">Status</th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-white/5">
+      {% if not pedidos %}
+      <tr><td colspan="9" class="p-16 text-center opacity-30 italic text-[10px] uppercase tracking-widest">Nenhum pedido encontrado com os filtros selecionados</td></tr>
+      {% else %}
+      {% set sc = {'aberto':'text-sky-400','faturado':'text-green-400','cancelado':'text-slate-500'} %}
+      {% for p in pedidos %}
+      <tr class="hover:bg-white/5 cursor-pointer" onclick="window.location='{{ url_for('pedido_ver', pid=p.id) }}'">
+        <td class="p-4 font-mono font-bold text-sky-400">{{ p.numero }}</td>
+        <td class="p-4 text-slate-400 font-mono">{{ p.data_pedido | fmt_data if p.data_pedido else '—' }}</td>
+        <td class="p-4 text-slate-200 font-bold uppercase">{{ p.nome_cliente or '—' }}</td>
+        {% if relatorio_completo %}<td class="p-4 text-slate-400">{{ p.nome_vendedor or '—' }}</td>{% endif %}
+        <td class="p-4 text-right font-mono text-slate-300">R$ {{ "%.2f"|format(p.subtotal|float) }}</td>
+        <td class="p-4 text-right font-mono text-rose-400">{% if p.desconto and p.desconto|float > 0 %}R$ {{ "%.2f"|format(p.desconto|float) }}{% else %}—{% endif %}</td>
+        <td class="p-4 text-right font-mono font-bold text-green-400">R$ {{ "%.2f"|format(p.total|float) }}</td>
+        <td class="p-4 text-slate-500">{{ p.forma_pagamento or '—' }}</td>
+        <td class="p-4 font-bold {{ sc.get(p.status,'text-slate-400') }}">{{ p.status }}</td>
+      </tr>
+      {% endfor %}
+      {% endif %}
+    </tbody>
+    {% if pedidos %}
+    <tfoot style="background:#0d1b2e;">
+      <tr class="text-[10px] font-bold uppercase tracking-widest">
+        <td class="p-4 text-slate-400" colspan="{{ 4 if relatorio_completo else 3 }}">Total ({{ totais.qtd }} pedidos)</td>
+        <td class="p-4 text-right font-mono text-slate-300">R$ {{ "%.2f"|format(totais.subtotal) }}</td>
+        <td class="p-4 text-right font-mono text-rose-400">R$ {{ "%.2f"|format(totais.desconto) }}</td>
+        <td class="p-4 text-right font-mono text-green-400">R$ {{ "%.2f"|format(totais.total) }}</td>
+        <td class="p-4" colspan="2"></td>
+      </tr>
+    </tfoot>
+    {% endif %}
+  </table>
+</div>
+<div class="mt-4" id="btn-voltar" class="no-print">
+  <a href="{{ url_for('relatorios') }}" class="text-[10px] font-bold uppercase tracking-widest text-slate-500 hover:text-white transition-all">← Voltar aos Relatórios</a>
+</div>
+{% endblock %}

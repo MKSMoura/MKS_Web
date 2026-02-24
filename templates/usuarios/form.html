@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+{% block title %}{{ usuario.nome if usuario else 'Novo Usuário' }}{% endblock %}
+{% block header_title %}
+  <a href="javascript:history.back()" class="text-[10px] bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white px-3 py-1.5 rounded-lg font-bold uppercase tracking-widest border border-white/5 transition-all mr-3 align-middle">←</a>
+  {% if modo=='novo' %}Novo <span class="font-bold text-sky-400">Usuário</span>
+  {% elif modo=='editar' %}Editar <span class="font-bold text-sky-400">{{ usuario.login }}</span>
+  {% else %}<span class="font-bold text-sky-400">{{ usuario.login }}</span>
+    <a href="{{ url_for('usuario_editar', uid=usuario.id) }}" class="text-[10px] bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 px-3 py-1.5 rounded-lg font-bold uppercase tracking-widest border border-sky-500/20 transition-all ml-3 align-middle">✏ Editar</a>
+  {% endif %}
+{% endblock %}
+{% block header_sub %}Cadastro de Usuário{% endblock %}
+{% set ver = (modo=='ver') %}
+{% set inp = 'glass bg-transparent w-full px-4 py-3 rounded-xl outline-none focus:ring-1 ring-sky-500/50 text-sm' %}
+{% set ro  = 'bg-white/3 border border-white/5 w-full px-4 py-3 rounded-xl text-sm text-slate-400 cursor-default' %}
+{% set f = inp if not ver else ro %}
+{% block head %}
+<style>
+  main { overflow-y: auto !important; }
+  .perm-btn { display:inline-flex; align-items:center; gap:6px; padding:6px 12px; border-radius:8px; border:1px solid; cursor:pointer; font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; transition:all .15s; user-select:none; }
+  .perm-btn input[type=checkbox] { display:none; }
+  /* ver */
+  .perm-ver        { border-color:rgba(56,189,248,0.2);  color:#64748b; background:transparent; }
+  .perm-ver.on     { border-color:rgba(56,189,248,0.6);  color:#38bdf8; background:rgba(56,189,248,0.08); }
+  /* criar */
+  .perm-criar      { border-color:rgba(74,222,128,0.2);  color:#64748b; background:transparent; }
+  .perm-criar.on   { border-color:rgba(74,222,128,0.6);  color:#4ade80; background:rgba(74,222,128,0.08); }
+  /* editar */
+  .perm-editar     { border-color:rgba(251,191,36,0.2);  color:#64748b; background:transparent; }
+  .perm-editar.on  { border-color:rgba(251,191,36,0.6);  color:#fbbf24; background:rgba(251,191,36,0.08); }
+  /* excluir */
+  .perm-excluir    { border-color:rgba(248,113,113,0.2); color:#64748b; background:transparent; }
+  .perm-excluir.on { border-color:rgba(248,113,113,0.6); color:#f87171; background:rgba(248,113,113,0.08); }
+  /* disabled */
+  .perm-btn.disabled { opacity:.35; cursor:default; pointer-events:none; }
+</style>
+{% endblock %}
+
+{% block content %}
+<form method="post"
+      action="{{ url_for('usuario_editar',uid=usuario.id) if modo=='editar' else url_for('usuario_novo') }}"
+      class="space-y-5 pb-8">
+
+  <!-- Dados -->
+  <div class="glass p-7 rounded-[2rem]">
+    <p class="text-[10px] uppercase tracking-widest text-sky-400 mb-5 font-bold">Dados do Usuário</p>
+    <div class="flex flex-col md:flex-row gap-4 mb-4">
+      <div class="flex flex-col gap-2" style="flex:1">
+        <label class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Login <span class="text-sky-400">*</span></label>
+        {% if modo=='editar' or modo=='ver' %}
+        <input type="text" value="{{ usuario.login }}" class="{{ ro }}" readonly>
+        {% else %}
+        <input type="text" name="login" placeholder="nome.sobrenome" class="{{ inp }}">
+        {% endif %}
+      </div>
+      <div class="flex flex-col gap-2" style="flex:2">
+        <label class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Nome Completo</label>
+        <input type="text" name="nome" value="{{ usuario.nome if usuario else '' }}" placeholder="Nome do usuário" class="{{ f }}" {{ 'readonly' if ver }}>
+      </div>
+      <div class="flex flex-col gap-2" style="flex:2">
+        <label class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Email</label>
+        <input type="email" name="email" value="{{ usuario.email if usuario else '' }}" placeholder="email@empresa.com" class="{{ f }}" {{ 'readonly' if ver }}>
+      </div>
+    </div>
+    <div class="flex flex-col md:flex-row gap-4">
+      <div class="flex flex-col gap-2" style="flex:1">
+        <label class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Perfil</label>
+        {% if ver %}
+        <input type="text" value="{{ usuario.perfil }}" class="{{ ro }}" readonly>
+        {% else %}
+        <select name="perfil" class="{{ inp }}">
+          {% for p in ['admin','administrativo','vendedor'] %}
+          <option value="{{ p }}" {{ 'selected' if usuario and usuario.perfil==p }}>{{ p|capitalize }}</option>
+          {% endfor %}
+        </select>
+        {% endif %}
+      </div>
+      <div class="flex flex-col gap-2" style="flex:1">
+        <label class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">
+          {% if modo=='editar' %}Nova Senha (deixe em branco para manter){% else %}Senha{% endif %}
+        </label>
+        {% if ver %}
+        <input type="text" value="••••••••" class="{{ ro }}" readonly>
+        {% else %}
+        <input type="password" name="senha" placeholder="••••••••" class="{{ inp }}">
+        {% endif %}
+      </div>
+      <div class="flex flex-col gap-2 justify-end" style="flex:0 0 auto">
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding-bottom:12px;">
+          <input type="checkbox" name="ativo" value="1"
+                 {{ 'checked' if not usuario or usuario.ativo=='S' }} {{ 'disabled' if ver }}
+                 style="width:18px;height:18px;accent-color:#38bdf8;cursor:pointer;">
+          <span class="text-[11px] font-bold uppercase tracking-widest text-slate-400">Usuário Ativo</span>
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <!-- Permissões -->
+  <div class="glass p-7 rounded-[2rem]">
+    <p class="text-[10px] uppercase tracking-widest text-sky-400 mb-1 font-bold">Permissões por Módulo</p>
+    <p class="text-[10px] text-slate-600 mb-5">Perfil <strong class="text-slate-400">Admin</strong> e <strong class="text-slate-400">Administrativo</strong> ignoram estas configurações e têm acesso amplo.</p>
+
+    <!-- Legenda -->
+    <div class="flex flex-wrap gap-2 mb-5">
+      <span class="perm-btn perm-ver on disabled">● Visualizar</span>
+      <span class="perm-btn perm-criar on disabled">● Criar</span>
+      <span class="perm-btn perm-editar on disabled">● Editar</span>
+      <span class="perm-btn perm-excluir on disabled">● Excluir</span>
+      <span class="perm-btn perm-ver disabled" style="margin-left:12px;">○ Sem acesso</span>
+    </div>
+
+    {% set modulos = [
+      ('clientes',    'Clientes',     'perm_clientes'),
+      ('produtos',    'Produtos',     'perm_produtos'),
+      ('pedidos',     'Pedidos',      'perm_pedidos'),
+      ('fornecedores','Fornecedores', 'perm_fornecedores'),
+      ('financeiro',  'Financeiro',   'perm_financeiro'),
+      ('relatorios',  'Relatórios',   'perm_relatorios'),
+      ('usuarios',    'Usuários',     'perm_usuarios'),
+    ] %}
+    {# Ações por módulo: alguns módulos têm ações diferentes #}
+    {% set acoes_padrao = [('ver','Visualizar','perm-ver'),('criar','Criar','perm-criar'),('editar','Editar','perm-editar'),('excluir','Excluir','perm-excluir')] %}
+    {% set acoes_relatorio = [('ver','Acessar','perm-ver'),('completo','Relatório Completo','perm-criar')] %}
+
+    <div class="space-y-1">
+      {% for mod_key, mod_label, field in modulos %}
+      {% set pd = (usuario.permissoes | from_json) if usuario and usuario.permissoes else {} %}
+      {% set perms_mod = pd.get(mod_key, []) %}
+      <div class="flex flex-col md:flex-row items-start md:items-center gap-3 py-3 border-b border-white/5">
+        <span class="text-[11px] font-bold uppercase tracking-widest text-slate-300" style="min-width:130px;">{{ mod_label }}</span>
+        <div class="flex flex-wrap gap-2">
+          {% set acoes = acoes_relatorio if mod_key=='relatorios' else acoes_padrao %}
+        {% for val, label, cls in acoes %}
+          {% set checked = val in perms_mod %}
+          {% if ver %}
+            <span class="perm-btn {{ cls }} {{ 'on' if checked else '' }} disabled">{{ '●' if checked else '○' }} {{ label }}</span>
+          {% else %}
+            <label class="perm-btn {{ cls }} {{ 'on' if checked else '' }}" onclick="togglePerm(this)">
+              <input type="checkbox" name="{{ field }}" value="{{ val }}" {{ 'checked' if checked }}>
+              <span class="dot">{{ '●' if checked else '○' }}</span> {{ label }}
+            </label>
+          {% endif %}
+          {% endfor %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  {% if usuario %}
+  <div class="glass p-7 rounded-[2rem]">
+    <p class="text-[10px] uppercase tracking-widest text-sky-400 mb-4 font-bold">Histórico</p>
+    <div class="flex flex-col md:flex-row gap-4">
+      <div class="flex flex-col gap-2" style="flex:1">
+        <label class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Cadastrado em</label>
+        <input type="text" value="{{ usuario.data_cadastro | fmt_data_hora if usuario.data_cadastro else '—' }}" class="{{ ro }}" readonly>
+      </div>
+      <div class="flex flex-col gap-2" style="flex:1">
+        <label class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Último Acesso</label>
+        <input type="text" value="{{ usuario.ultimo_acesso or '—' }}" class="{{ ro }}" readonly>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  {% endif %}
+
+  {% if not ver %}
+  <div class="flex justify-between gap-4 pt-1">
+    <a href="javascript:history.back()" class="bg-white/5 hover:bg-white/10 text-slate-400 px-6 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest border border-white/5 transition-all">← Voltar</a>
+    <button type="submit" class="bg-sky-500 hover:bg-sky-400 text-white px-8 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all shadow-[0_0_20px_rgba(56,189,248,0.2)]">💾 Salvar</button>
+  </div>
+  {% endif %}
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function togglePerm(label) {
+  const cb = label.querySelector('input[type=checkbox]');
+  const dot = label.querySelector('.dot');
+  cb.checked = !cb.checked;
+  label.classList.toggle('on', cb.checked);
+  dot.textContent = cb.checked ? '●' : '○';
+}
+fixInputStyles();
+</script>
+{% endblock %}

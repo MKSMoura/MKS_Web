@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#020617">
+  <title>REPRESENTA | Trocar Senha</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Plus+Jakarta+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root { --neon-sky: #38bdf8; --deep-space: #020617; }
+    html, body { background-color: #020617; color: #f8fafc; font-family: 'Plus Jakarta Sans', sans-serif; min-height: 100vh; }
+    .font-orbitron { font-family: 'Orbitron', sans-serif; }
+    .glass { background: rgba(255,255,255,0.03); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.08); }
+    input:-webkit-autofill, input:-webkit-autofill:focus { -webkit-box-shadow: 0 0 0 1000px #020617 inset !important; -webkit-text-fill-color: #f8fafc !important; }
+    .inp { background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:14px;color:#f8fafc;font-family:inherit;font-size:.9rem;padding:14px 18px;outline:none;transition:border-color .2s;width:100%; }
+    .inp:focus { border-color:rgba(56,189,248,0.5); }
+    .bar { height:4px;border-radius:4px;transition:width .3s,background .3s; }
+  </style>
+</head>
+<body style="display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px;">
+  <div class="fixed top-[-10%] left-[-10%] w-[500px] h-[500px] bg-sky-900/20 blur-[120px] rounded-full -z-10"></div>
+  <div class="fixed bottom-[-10%] right-[-10%] w-[400px] h-[400px] bg-indigo-900/20 blur-[100px] rounded-full -z-10"></div>
+
+  <div class="glass rounded-[2.5rem] p-10 w-full" style="max-width:440px;">
+
+    <!-- Ícone + título -->
+    <div style="text-align:center;margin-bottom:32px;">
+      <div style="width:60px;height:60px;background:rgba(251,191,36,0.15);border:1px solid rgba(251,191,36,0.3);border-radius:18px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;">
+        <svg width="28" height="28" fill="none" stroke="#fbbf24" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/>
+        </svg>
+      </div>
+      <h1 class="font-orbitron font-bold text-xl tracking-tighter text-amber-400">Trocar Senha</h1>
+      <p class="text-[11px] text-slate-500 mt-2 uppercase tracking-widest">Defina uma nova senha para continuar</p>
+    </div>
+
+    {% if erro %}
+    <div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);color:#f87171;border-radius:12px;padding:12px 16px;font-size:.8rem;font-weight:600;margin-bottom:20px;text-align:center;">{{ erro }}</div>
+    {% endif %}
+
+    <form method="post" style="display:flex;flex-direction:column;gap:16px;">
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        <label style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#64748b;">Nova Senha</label>
+        <input type="password" name="nova_senha" id="nova_senha" autocomplete="new-password"
+               placeholder="Mínimo 6 caracteres" class="inp" oninput="avaliarSenha(this.value)">
+        <!-- Barra de força -->
+        <div style="background:rgba(255,255,255,0.05);border-radius:4px;height:4px;margin-top:2px;">
+          <div id="barra-forca" class="bar" style="width:0%;background:#f87171;"></div>
+        </div>
+        <span id="label-forca" style="font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#64748b;"></span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        <label style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#64748b;">Confirmar Senha</label>
+        <input type="password" name="conf_senha" id="conf_senha" autocomplete="new-password"
+               placeholder="Repita a nova senha" class="inp" oninput="avaliarConf()">
+        <span id="label-conf" style="font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;"></span>
+      </div>
+      <button type="submit"
+              style="margin-top:8px;background:#fbbf24;color:#020617;border:none;border-radius:14px;padding:15px;font-family:inherit;font-size:10px;font-weight:800;letter-spacing:.15em;text-transform:uppercase;cursor:pointer;transition:background .2s;"
+              onmouseover="this.style.background='#fde68a'" onmouseout="this.style.background='#fbbf24'">
+        Salvar Nova Senha →
+      </button>
+    </form>
+
+  </div>
+
+  <script>
+  function avaliarSenha(v) {
+    const barra = document.getElementById('barra-forca');
+    const label = document.getElementById('label-forca');
+    let forca = 0;
+    if (v.length >= 6)  forca++;
+    if (v.length >= 10) forca++;
+    if (/[A-Z]/.test(v)) forca++;
+    if (/[0-9]/.test(v)) forca++;
+    if (/[^A-Za-z0-9]/.test(v)) forca++;
+    const cfg = [
+      [0,   '0%',   '#374151', ''],
+      [1,   '25%',  '#f87171', 'Fraca'],
+      [2,   '50%',  '#fb923c', 'Razoável'],
+      [3,   '70%',  '#fbbf24', 'Boa'],
+      [4,   '85%',  '#4ade80', 'Forte'],
+      [5,  '100%',  '#38bdf8', 'Excelente'],
+    ];
+    const [,w,c,t] = cfg[Math.min(forca, 5)];
+    barra.style.width = w; barra.style.background = c;
+    label.textContent = t; label.style.color = c;
+    avaliarConf();
+  }
+  function avaliarConf() {
+    const nova = document.getElementById('nova_senha').value;
+    const conf = document.getElementById('conf_senha').value;
+    const label = document.getElementById('label-conf');
+    if (!conf) { label.textContent = ''; return; }
+    if (nova === conf) {
+      label.textContent = '✓ Senhas coincidem'; label.style.color = '#4ade80';
+    } else {
+      label.textContent = '✗ Senhas diferentes'; label.style.color = '#f87171';
+    }
+  }
+  </script>
+</body>
+</html>

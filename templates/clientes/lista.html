@@ -1,0 +1,283 @@
+{% extends "base.html" %}
+{% block title %}Clientes{% endblock %}
+{% block header_title %}Clientes{% endblock %}
+{% block header_sub %}{% endblock %}
+
+{% block head %}
+<style>
+#main-area { overflow: hidden !important; }
+
+/* ── Tabela desktop ── */
+.res-table { width:100%; }
+.res-mobile { display:none; }
+
+/* ── Cards mobile ── */
+@media (max-width: 768px) {
+  .res-table  { display: none; }
+  .res-mobile { display: block; }
+  .card-cli {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 16px;
+    padding: 14px 16px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: background .15s;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .card-cli:active { background: rgba(56,189,248,0.06); }
+  .card-cli-body { flex: 1; min-width: 0; }
+  .card-cli-nome { font-size:.85rem; font-weight:700; color:#e2e8f0; text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .card-cli-sub  { font-size:.7rem; color:#64748b; margin-top:2px; font-family:monospace; }
+  .card-cli-arr  { color:#334155; font-size:1.1rem; flex-shrink:0; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="display:flex;flex-direction:column;height:100%;gap:0;">
+
+  <!-- Busca + Adicionar -->
+  <div class="flex gap-3 mb-5">
+    <div class="relative flex-1">
+      <input type="text" id="busca" autocomplete="off"
+             placeholder="Buscar por nome, CPF, CNPJ..."
+             class="glass bg-transparent w-full pl-12 pr-6 py-4 rounded-2xl outline-none focus:ring-1 ring-sky-500/50 text-sm">
+      <svg class="w-5 h-5 absolute left-4 top-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+      </svg>
+      <span id="busca-status" style="position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:9px;color:#475569;text-transform:uppercase;letter-spacing:.05em;"></span>
+    </div>
+    <button onclick="abrirModalAdicionar()"
+            class="flex-shrink-0 h-full flex items-center gap-2 bg-sky-500 hover:bg-sky-400 text-white px-6 rounded-2xl text-[10px] font-bold uppercase tracking-widest transition-all shadow-[0_0_20px_rgba(56,189,248,0.15)]">
+      + Adicionar
+    </button>
+  </div>
+
+  <!-- Resultado -->
+  <div style="flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column;" class="w-full glass rounded-[2rem]">
+    <!-- Desktop: tabela -->
+    <div class="res-table" style="flex:1;min-height:0;overflow-y:auto;">
+      <table class="w-full text-left text-sm">
+        <thead style="background:#0d1b2e;position:sticky;top:0;z-index:1;" class="text-slate-500 uppercase text-[10px] tracking-widest">
+          <tr>
+            <th class="p-5 w-16">Tipo</th>
+            <th class="p-5">Nome / Empresa</th>
+            <th class="p-5">Documento</th>
+            <th class="p-5">Telefone</th>
+            <th class="p-5 w-10"></th>
+          </tr>
+        </thead>
+        <tbody id="tbody-desktop" class="divide-y divide-white/5"></tbody>
+      </table>
+    </div>
+    <!-- Mobile: cards -->
+    <div class="res-mobile" id="cards-mobile" style="flex:1;overflow-y:auto;padding:12px;"></div>
+  </div>
+
+</div>
+
+<!-- Estado vazio/inicial -->
+<template id="tpl-vazio">
+  <tr><td colspan="5" class="p-20 text-center opacity-30 italic text-[10px] uppercase tracking-widest">Digite para buscar clientes</td></tr>
+</template>
+<template id="tpl-sem-resultado">
+  <tr><td colspan="5" class="p-20 text-center text-rose-500 font-bold text-[10px] uppercase tracking-widest">Nenhum resultado encontrado</td></tr>
+</template>
+
+<!-- Modal Adicionar -->
+<div id="modal-adicionar" style="display:none;position:fixed;inset:0;z-index:200;align-items:center;justify-content:center;">
+  <div onclick="fecharModal()" style="position:absolute;inset:0;background:rgba(2,6,23,0.8);backdrop-filter:blur(8px);"></div>
+  <div style="position:relative;z-index:10;width:100%;max-width:420px;background:rgba(13,27,46,0.95);border:1px solid rgba(56,189,248,0.2);border-radius:24px;padding:36px;box-shadow:0 0 60px rgba(56,189,248,0.1);">
+    <p class="font-orbitron font-bold text-sky-400 text-sm uppercase tracking-widest mb-2">Novo Cliente</p>
+    <p class="text-slate-500 text-xs mb-6">Digite o CPF ou CNPJ para identificar o tipo e verificar.</p>
+    <div style="position:relative;margin-bottom:8px;">
+      <input type="text" id="modal-doc" placeholder="000.000.000-00  ou  00.000.000/0000-00"
+             oninput="onModalDoc(this)"
+             style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:12px;color:#f8fafc;font-family:inherit;font-size:0.9rem;padding:14px 16px;outline:none;width:100%;transition:border-color .2s;"
+             onfocus="this.style.borderColor='rgba(56,189,248,0.5)'"
+             onblur="this.style.borderColor='rgba(255,255,255,0.1)'">
+    </div>
+    <div id="modal-msg" style="font-size:10px;font-weight:700;letter-spacing:.05em;min-height:18px;margin-bottom:16px;"></div>
+    <div class="flex gap-3">
+      <button onclick="fecharModal()" style="flex:1;padding:12px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;color:#94a3b8;font-family:inherit;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;">Cancelar</button>
+      <button id="modal-btn-ok" onclick="confirmarModal()" style="flex:1;padding:12px;background:rgba(56,189,248,0.15);border:1px solid rgba(56,189,248,0.3);border-radius:12px;color:#38bdf8;font-family:inherit;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;opacity:.4;pointer-events:none;">Continuar →</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const PF_URL = "{{ url_for('pf_novo') }}";
+const PJ_URL = "{{ url_for('pj_novo') }}";
+const PF_VER = "{{ url_for('pf_ver', cid=0) }}".replace('/0','');
+const PJ_VER = "{{ url_for('pj_ver', cid=0) }}".replace('/0','');
+const STORAGE_KEY = 'busca_clientes';
+
+// ── Cache e busca ────────────────────────────────────────────
+let _cache = null;         // todos os clientes em memória
+let _timer = null;
+let _q     = '';
+
+async function carregarCache() {
+  if (_cache) return _cache;
+  document.getElementById('busca-status').textContent = 'carregando...';
+  const r = await fetch('/api/clientes-lista');
+  _cache = await r.json();
+  document.getElementById('busca-status').textContent = '';
+  return _cache;
+}
+
+function fmtDoc(tipo, doc) {
+  const d = (doc||'').replace(/\D/g,'');
+  if (tipo==='pf' && d.length===11) return d.slice(0,3)+'.'+d.slice(3,6)+'.'+d.slice(6,9)+'-'+d.slice(9);
+  if (tipo==='pj' && d.length===14) return d.slice(0,2)+'.'+d.slice(2,5)+'.'+d.slice(5,8)+'/'+d.slice(8,12)+'-'+d.slice(12);
+  return doc||'';
+}
+function fmtTel(t) {
+  const d = (t||'').replace(/\D/g,'');
+  if (d.length===11) return '('+d.slice(0,2)+') '+d.slice(2,7)+'-'+d.slice(7);
+  if (d.length===10) return '('+d.slice(0,2)+') '+d.slice(2,6)+'-'+d.slice(6);
+  return t||'';
+}
+
+function buscarLocal(q) {
+  if (!_cache) return [];
+  const qu = q.toUpperCase();
+  return _cache.filter(c =>
+    (c.nome||'').toUpperCase().includes(qu) ||
+    (c.fantasia||'').toUpperCase().includes(qu) ||
+    (c.doc||'').includes(qu) ||
+    (c.doc||'').replace(/\D/g,'').includes(qu.replace(/\D/g,''))
+  ).slice(0, 80);
+}
+
+function renderResultados(lista, q) {
+  const tbody = document.getElementById('tbody-desktop');
+  const cards = document.getElementById('cards-mobile');
+
+  if (!q || q.length < 2) {
+    tbody.innerHTML = '<tr><td colspan="5" class="p-20 text-center opacity-30 italic text-[10px] uppercase tracking-widest">Digite para buscar clientes</td></tr>';
+    cards.innerHTML = '';
+    return;
+  }
+  if (!lista.length) {
+    tbody.innerHTML = '<tr><td colspan="5" class="p-20 text-center text-rose-500 font-bold text-[10px] uppercase tracking-widest">Nenhum resultado para "'+q+'"</td></tr>';
+    cards.innerHTML = '<p style="padding:40px;text-align:center;color:#f87171;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;">Nenhum resultado para "'+q+'"</p>';
+    return;
+  }
+
+  // Desktop
+  tbody.innerHTML = lista.map(c => {
+    const url   = (c.tipo==='pf' ? PF_VER : PJ_VER) + '/' + c.id;
+    const badge = c.tipo==='pf'
+      ? '<span style="background:rgba(56,189,248,0.1);color:#38bdf8;border:1px solid rgba(56,189,248,0.2);padding:2px 10px;border-radius:999px;font-size:10px;font-weight:700;">PF</span>'
+      : '<span style="background:rgba(99,102,241,0.1);color:#a5b4fc;border:1px solid rgba(99,102,241,0.2);padding:2px 10px;border-radius:999px;font-size:10px;font-weight:700;">PJ</span>';
+    const nome  = c.tipo==='pj' && c.fantasia ? `${c.nome} <span style="color:#64748b;font-weight:400;font-size:11px;">/ ${c.fantasia}</span>` : c.nome;
+    return `<tr class="hover:bg-white/5 transition-colors cursor-pointer" onclick="sessionStorage.setItem('${STORAGE_KEY}','${q.replace(/'/g,"\\'")}');window.location='${url}'">
+      <td class="p-5">${badge}</td>
+      <td class="p-5 font-bold uppercase text-slate-200">${nome||'—'}</td>
+      <td class="p-5 font-mono text-sky-400 text-xs opacity-70">${fmtDoc(c.tipo,c.doc)}</td>
+      <td class="p-5 font-mono text-slate-400 text-xs">${fmtTel(c.tel)}</td>
+      <td class="p-5 text-right text-slate-600">→</td>
+    </tr>`;
+  }).join('');
+
+  // Mobile cards
+  cards.innerHTML = lista.map(c => {
+    const url   = (c.tipo==='pf' ? PF_VER : PJ_VER) + '/' + c.id;
+    const badge = c.tipo==='pf'
+      ? '<span style="background:rgba(56,189,248,0.1);color:#38bdf8;border:1px solid rgba(56,189,248,0.2);padding:2px 8px;border-radius:999px;font-size:9px;font-weight:700;flex-shrink:0;">PF</span>'
+      : '<span style="background:rgba(99,102,241,0.1);color:#a5b4fc;border:1px solid rgba(99,102,241,0.2);padding:2px 8px;border-radius:999px;font-size:9px;font-weight:700;flex-shrink:0;">PJ</span>';
+    const nome  = c.tipo==='pj' && c.fantasia ? `${c.nome} / ${c.fantasia}` : (c.nome||'—');
+    const sub   = fmtDoc(c.tipo,c.doc) + (c.tel ? '  ·  '+fmtTel(c.tel) : '');
+    return `<div class="card-cli" onclick="sessionStorage.setItem('${STORAGE_KEY}','${q.replace(/'/g,"\\'")}');window.location='${url}'">
+      ${badge}
+      <div class="card-cli-body">
+        <div class="card-cli-nome">${nome}</div>
+        <div class="card-cli-sub">${sub}</div>
+      </div>
+      <div class="card-cli-arr">›</div>
+    </div>`;
+  }).join('');
+}
+
+const inp = document.getElementById('busca');
+const status = document.getElementById('busca-status');
+
+inp.addEventListener('input', function() {
+  clearTimeout(_timer);
+  const q = this.value.trim();
+  _q = q;
+  if (q.length < 2) { renderResultados([], q); return; }
+  status.textContent = '...';
+  _timer = setTimeout(async () => {
+    await carregarCache();
+    if (_q !== q) return; // query mudou enquanto carregava
+    const res = buscarLocal(q);
+    status.textContent = res.length ? res.length+' result.' : '';
+    renderResultados(res, q);
+  }, 300); // 300ms — rápido pois é local
+});
+
+// Restaurar busca salva ao voltar
+window.addEventListener('DOMContentLoaded', async () => {
+  await carregarCache();
+  const saved = sessionStorage.getItem(STORAGE_KEY) || '';
+  if (saved.length >= 2) {
+    inp.value = saved;
+    const res = buscarLocal(saved);
+    status.textContent = res.length ? res.length+' result.' : '';
+    renderResultados(res, saved);
+  } else {
+    renderResultados([], '');
+  }
+  inp.focus();
+  inp.setSelectionRange(inp.value.length, inp.value.length);
+});
+
+// ── Modal ────────────────────────────────────────────────────
+function abrirModalAdicionar() {
+  const m = document.getElementById('modal-adicionar');
+  m.style.display = 'flex';
+  setTimeout(() => document.getElementById('modal-doc').focus(), 50);
+}
+function fecharModal() {
+  document.getElementById('modal-adicionar').style.display = 'none';
+  document.getElementById('modal-doc').value = '';
+  document.getElementById('modal-msg').textContent = '';
+  const btn = document.getElementById('modal-btn-ok');
+  btn.style.opacity = '.4'; btn.style.pointerEvents = 'none'; btn.dataset.tipo = '';
+  inp.focus();
+}
+document.addEventListener('keydown', e => { if(e.key==='Escape') fecharModal(); });
+function onModalDoc(el) {
+  const digits = el.value.replace(/\D/g,'');
+  const msg = document.getElementById('modal-msg');
+  const btn = document.getElementById('modal-btn-ok');
+  if (digits.length <= 11) el.value = fmtCPF(digits);
+  else el.value = fmtCNPJ(digits);
+  const raw = el.value.replace(/\D/g,'');
+  btn.dataset.tipo = '';
+  if (raw.length === 11) {
+    if (validarCPF(raw)) { msg.textContent='✓ CPF válido — Pessoa Física'; msg.style.color='#4ade80'; btn.dataset.tipo='pf'; btn.style.opacity='1'; btn.style.pointerEvents='auto'; }
+    else { msg.textContent='✗ CPF inválido'; msg.style.color='#f87171'; btn.style.opacity='.4'; btn.style.pointerEvents='none'; }
+  } else if (raw.length === 14) {
+    if (validarCNPJ(raw)) { msg.textContent='✓ CNPJ válido — Pessoa Jurídica'; msg.style.color='#4ade80'; btn.dataset.tipo='pj'; btn.style.opacity='1'; btn.style.pointerEvents='auto'; }
+    else { msg.textContent='✗ CNPJ inválido'; msg.style.color='#f87171'; btn.style.opacity='.4'; btn.style.pointerEvents='none'; }
+  } else { msg.textContent=''; btn.style.opacity='.4'; btn.style.pointerEvents='none'; }
+}
+function confirmarModal() {
+  const btn = document.getElementById('modal-btn-ok');
+  const doc = document.getElementById('modal-doc').value;
+  const base = btn.dataset.tipo==='pf' ? PF_URL : PJ_URL;
+  window.location.href = base + '?doc=' + encodeURIComponent(doc);
+}
+document.getElementById('modal-doc').addEventListener('keydown', e => {
+  if (e.key==='Enter') { e.preventDefault(); const b=document.getElementById('modal-btn-ok'); if(b.style.pointerEvents!=='none') confirmarModal(); }
+});
+</script>
+{% endblock %}

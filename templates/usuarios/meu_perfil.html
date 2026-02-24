@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block title %}Meu Perfil{% endblock %}
+{% block header_title %}Meu Perfil{% endblock %}
+{% block header_sub %}{{ usuario.nome }}{% endblock %}
+
+{% block content %}
+<div style="max-width:680px;margin:0 auto;display:flex;flex-direction:column;gap:24px;">
+
+  <!-- Card de Informações -->
+  <div class="glass rounded-[2rem] p-8">
+    <p class="text-[10px] uppercase tracking-widest text-slate-500 mb-5 font-bold">Informações da Conta</p>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:20px;">
+      <div>
+        <p class="text-[10px] uppercase tracking-widest text-slate-600 mb-1">Nome</p>
+        <p class="text-sm font-semibold">{{ usuario.nome }}</p>
+      </div>
+      <div>
+        <p class="text-[10px] uppercase tracking-widest text-slate-600 mb-1">Login</p>
+        <p class="text-sm font-semibold font-mono text-sky-400">{{ usuario.login }}</p>
+      </div>
+      <div>
+        <p class="text-[10px] uppercase tracking-widest text-slate-600 mb-1">E-mail</p>
+        <p class="text-sm font-semibold">{{ usuario.email or '—' }}</p>
+      </div>
+      <div>
+        <p class="text-[10px] uppercase tracking-widest text-slate-600 mb-1">Perfil</p>
+        <p class="text-sm font-semibold capitalize">
+          {% if usuario.perfil == 'admin' %}
+            <span class="text-sky-400">Administrador</span>
+          {% elif usuario.perfil == 'administrativo' %}
+            <span class="text-purple-400">Administrativo</span>
+          {% else %}
+            <span class="text-slate-400">Vendedor</span>
+          {% endif %}
+        </p>
+      </div>
+      {% if usuario.ultimo_acesso %}
+      <div>
+        <p class="text-[10px] uppercase tracking-widest text-slate-600 mb-1">Último Acesso</p>
+        <p class="text-sm font-semibold">{{ usuario.ultimo_acesso }}</p>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Alterar Senha -->
+  <div class="glass rounded-[2rem] p-8">
+    <p class="text-[10px] uppercase tracking-widest text-sky-400 mb-1 font-bold">🔑 Alterar Senha</p>
+    <p class="text-[11px] text-slate-500 mb-6">Sua nova senha precisa ter pelo menos 6 caracteres.</p>
+
+    {% if erro %}
+    <div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);color:#f87171;border-radius:12px;padding:12px 16px;font-size:.8rem;font-weight:600;margin-bottom:20px;">
+      {{ erro }}
+    </div>
+    {% endif %}
+
+    <form method="post" style="display:flex;flex-direction:column;gap:18px;">
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        <label class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Senha Atual</label>
+        <input type="password" name="senha_atual" autocomplete="current-password" required
+               placeholder="Digite sua senha atual"
+               class="glass bg-transparent px-4 py-3 rounded-xl outline-none focus:ring-1 ring-sky-500/50 text-sm">
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        <label class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Nova Senha</label>
+        <input type="password" name="nova_senha" id="nova_senha" autocomplete="new-password" required
+               placeholder="Mínimo 6 caracteres" oninput="avaliarForca(this.value)"
+               class="glass bg-transparent px-4 py-3 rounded-xl outline-none focus:ring-1 ring-sky-500/50 text-sm">
+        <div style="background:rgba(255,255,255,0.05);border-radius:4px;height:3px;margin-top:2px;">
+          <div id="barra-forca" style="height:3px;border-radius:4px;width:0%;transition:width .3s,background .3s;background:#f87171;"></div>
+        </div>
+        <span id="label-forca" style="font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#64748b;"></span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        <label class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Confirmar Nova Senha</label>
+        <input type="password" name="conf_senha" id="conf_senha" autocomplete="new-password" required
+               placeholder="Repita a nova senha" oninput="avaliarConf()"
+               class="glass bg-transparent px-4 py-3 rounded-xl outline-none focus:ring-1 ring-sky-500/50 text-sm">
+        <span id="label-conf" style="font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;"></span>
+      </div>
+      <div class="flex justify-end">
+        <button type="submit"
+                class="bg-sky-500 hover:bg-sky-400 text-white px-8 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all shadow-[0_0_20px_rgba(56,189,248,0.2)]">
+          💾 Salvar Nova Senha
+        </button>
+      </div>
+    </form>
+  </div>
+
+</div>
+
+<script>
+function avaliarForca(v) {
+  let f = 0;
+  if (v.length >= 6)  f++;
+  if (v.length >= 10) f++;
+  if (/[A-Z]/.test(v)) f++;
+  if (/[0-9]/.test(v)) f++;
+  if (/[^A-Za-z0-9]/.test(v)) f++;
+  const cfg = [[0,'0%','#374151',''],[1,'25%','#f87171','Fraca'],[2,'50%','#fb923c','Razoável'],
+               [3,'70%','#fbbf24','Boa'],[4,'85%','#4ade80','Forte'],[5,'100%','#38bdf8','Excelente']];
+  const [,w,cor,t] = cfg[Math.min(f,5)];
+  document.getElementById('barra-forca').style.width = w;
+  document.getElementById('barra-forca').style.background = cor;
+  document.getElementById('label-forca').textContent = t;
+  document.getElementById('label-forca').style.color = cor;
+  avaliarConf();
+}
+function avaliarConf() {
+  const nova = document.getElementById('nova_senha').value;
+  const conf = document.getElementById('conf_senha').value;
+  const lbl  = document.getElementById('label-conf');
+  if (!conf) { lbl.textContent=''; return; }
+  if (nova===conf) { lbl.textContent='✓ Senhas coincidem'; lbl.style.color='#4ade80'; }
+  else             { lbl.textContent='✗ Senhas diferentes'; lbl.style.color='#f87171'; }
+}
+</script>
+{% endblock %}

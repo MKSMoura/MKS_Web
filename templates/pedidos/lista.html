@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block title %}Pedidos{% endblock %}
+{% block header_title %}Pedidos{% endblock %}
+{% block header_sub %}{% endblock %}
+
+{% block head %}
+<style> #main-area { overflow: hidden !important; } </style>
+{% endblock %}
+
+{% block content %}
+<div style="display:flex;flex-direction:column;height:100%;gap:0;">
+
+  {% if so_meus %}
+  <div class="flex items-center gap-3 mb-3 px-4 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-widest" style="background:rgba(56,189,248,0.06);border:1px solid rgba(56,189,248,0.15);color:#38bdf8;">
+    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+    Exibindo apenas seus pedidos
+  </div>
+  {% endif %}
+  <div class="flex gap-3 mb-5">
+    <form action="{{ url_for('pedidos') }}" method="get" class="relative flex-1">
+      <input type="text" name="q" id="busca" value="{{ q }}" autocomplete="off"
+             placeholder="Buscar por número, cliente, CPF/CNPJ, vendedor..."
+             class="glass bg-transparent w-full pl-12 pr-6 py-4 rounded-2xl outline-none focus:ring-1 ring-sky-500/50 text-sm">
+      <svg class="w-5 h-5 absolute left-4 top-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+      </svg>
+    </form>
+    <a href="{{ url_for('pedido_novo') }}"
+       class="flex-shrink-0 flex items-center gap-2 bg-sky-500 hover:bg-sky-400 text-white px-6 rounded-2xl text-[10px] font-bold uppercase tracking-widest transition-all shadow-[0_0_20px_rgba(56,189,248,0.15)]">
+      + Novo Pedido
+    </a>
+  </div>
+
+  <div style="flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column;" class="w-full glass rounded-[2rem]">
+    <div style="flex:1;min-height:0;overflow-y:auto;overflow-x:auto;">
+      <table class="w-full text-left text-sm">
+        <thead style="background:#0d1b2e;position:sticky;top:0;z-index:1;" class="text-slate-500 uppercase text-[10px] tracking-widest">
+          <tr>
+            <th class="p-5">Número</th>
+            <th class="p-5">Data</th>
+            <th class="p-5">Cliente</th>
+            <th class="p-5">Vendedor</th>
+            <th class="p-5 text-right">Total</th>
+            <th class="p-5">Status</th>
+            <th class="p-5 w-8"></th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-white/5">
+          {% if not resultados and not q %}
+          <tr><td colspan="7" class="p-20 text-center opacity-30 italic text-[10px] uppercase tracking-widest">Nenhum pedido encontrado</td></tr>
+          {% elif not resultados %}
+          <tr><td colspan="7" class="p-20 text-center text-rose-500 font-bold text-[10px] uppercase tracking-widest">Nenhum resultado para "{{ q }}"</td></tr>
+          {% else %}
+          {% for p in resultados %}
+          {% set sc = {'aberto':'bg-sky-500/10 text-sky-400 border-sky-500/20', 'faturado':'bg-green-500/10 text-green-400 border-green-500/20', 'cancelado':'bg-rose-500/10 text-rose-400 border-rose-500/20'} %}
+          <tr class="hover:bg-white/5 transition-colors cursor-pointer"
+              onclick="window.location='{{ url_for('pedido_ver', pid=p.id) }}'">
+            <td class="p-5 font-mono text-sky-400 text-xs font-bold">{{ p.numero }}</td>
+            <td class="p-5 text-slate-400 text-xs">{{ p.data_pedido | fmt_data if p.data_pedido else '—' }}  {{ p.hora_pedido or '' }}</td>
+            <td class="p-5 font-bold text-slate-200 uppercase text-xs">{{ p.nome_cliente or '—' }}</td>
+            <td class="p-5 text-slate-400 text-xs">{{ p.nome_vendedor or '—' }}</td>
+            <td class="p-5 text-right font-mono text-sky-400 text-xs font-bold">R$ {{ "%.2f"|format(p.total|float) }}</td>
+            <td class="p-5">
+              <span class="border px-3 py-1 rounded-full text-[10px] font-bold uppercase {{ sc.get(p.status, 'bg-slate-500/10 text-slate-400 border-slate-500/20') }}">
+                {{ p.status }}
+              </span>
+            </td>
+            <td class="p-5 text-slate-600 hover:text-sky-400 text-lg text-right">→</td>
+          </tr>
+          {% endfor %}
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() { initBusca('/pedidos'); });
+const rows = () => Array.from(document.querySelectorAll('tbody tr[onclick]'));
+let idx = -1;
+const busca = document.getElementById('busca');
+if (busca) {
+  busca.addEventListener('keydown', function(e) {
+    const list = rows(); if (!list.length) return;
+    if (e.key==='ArrowDown'){e.preventDefault();idx=Math.min(idx+1,list.length-1);hilite(list,idx);}
+    else if(e.key==='ArrowUp'){e.preventDefault();idx=Math.max(idx-1,0);hilite(list,idx);}
+    else if(e.key==='Enter'&&idx>=0){e.preventDefault();list[idx].click();}
+  });
+}
+function hilite(list,i){
+  list.forEach((r,j)=>{r.style.background=j===i?'rgba(56,189,248,0.08)':'';r.style.borderLeft=j===i?'3px solid rgba(56,189,248,0.5)':'3px solid transparent';});
+  list[i].scrollIntoView({block:'nearest'});
+}
+</script>
+<script>
+// Preservar e restaurar busca ao navegar
+(function(){
+  var q = document.getElementById('busca');
+  var urlQ = new URLSearchParams(window.location.search).get('q');
+  var saved = sessionStorage.getItem('busca_pedidos') || '';
+
+  // Sincronizar URL com storage
+  if (urlQ !== null) {
+    sessionStorage.setItem('busca_pedidos', urlQ);
+  } else if (saved.length >= 3 && q) {
+    // Voltando de um item sem ?q= — restaurar e buscar
+    q.value = saved;
+    q.closest('form').submit();
+    return;
+  }
+
+  // Salvar ao clicar em qualquer linha/link de item
+  document.querySelectorAll('tr[onclick], a[href*="/pedidos/"]').forEach(function(el){
+    el.addEventListener('click', function(){
+      sessionStorage.setItem('busca_pedidos', (q ? q.value : '') || '');
+    });
+  });
+})();
+</script>
+{% endblock %}

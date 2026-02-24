@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}Fornecedores{% endblock %}
+{% block header_title %}Fornecedores{% endblock %}
+{% block header_sub %}{% endblock %}
+{% block head %}<style>#main-area{overflow:hidden!important}</style>{% endblock %}
+
+{% block content %}
+<div style="display:flex;flex-direction:column;height:100%;gap:0;">
+  <div class="flex gap-3 mb-5">
+    <form action="{{ url_for('fornecedores') }}" method="get" class="relative flex-1">
+      <input type="text" name="q" id="busca" value="{{ q }}" autocomplete="off"
+             placeholder="Buscar por razão social, fantasia, CNPJ, CPF, cidade..."
+             class="glass bg-transparent w-full pl-12 pr-6 py-4 rounded-2xl outline-none focus:ring-1 ring-sky-500/50 text-sm">
+      <svg class="w-5 h-5 absolute left-4 top-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+      </svg>
+    </form>
+    <a href="{{ url_for('fornecedor_novo') }}"
+       class="flex-shrink-0 flex items-center gap-2 bg-sky-500 hover:bg-sky-400 text-white px-6 rounded-2xl text-[10px] font-bold uppercase tracking-widest transition-all">
+      + Novo Fornecedor
+    </a>
+  </div>
+
+  <div style="flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column;" class="glass rounded-[2rem]">
+    <div style="flex:1;overflow-y:auto;overflow-x:auto;">
+      <table class="w-full text-left text-sm">
+        <thead style="background:#0d1b2e;position:sticky;top:0;" class="text-slate-500 uppercase text-[10px] tracking-widest">
+          <tr>
+            <th class="p-5">Tipo</th>
+            <th class="p-5">Razão Social / Nome</th>
+            <th class="p-5">CNPJ / CPF</th>
+            <th class="p-5">Telefone</th>
+            <th class="p-5">Cidade</th>
+            <th class="p-5">Prazo</th>
+            <th class="p-5">Status</th>
+            <th class="p-5 w-8"></th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-white/5">
+          {% if not q %}
+          <tr><td colspan="8" class="p-20 text-center opacity-30 italic text-[10px] uppercase tracking-widest">Digite pelo menos 3 caracteres para buscar</td></tr>
+          {% elif not resultados %}
+          <tr><td colspan="8" class="p-20 text-center text-rose-500 font-bold text-[10px] uppercase tracking-widest">Nenhum resultado para "{{ q }}"</td></tr>
+          {% else %}
+          {% for f in resultados %}
+          <tr class="hover:bg-white/5 transition-colors cursor-pointer" onclick="window.location='{{ url_for('fornecedor_ver', fid=f.id) }}'">
+            <td class="p-5">
+              <span class="border px-2 py-1 rounded text-[9px] font-bold uppercase {{ 'text-indigo-400 bg-indigo-500/10 border-indigo-500/20' if f.tipo=='PJ' else 'text-amber-400 bg-amber-500/10 border-amber-500/20' }}">{{ f.tipo }}</span>
+            </td>
+            <td class="p-5 font-bold text-slate-200 uppercase text-xs">
+              {{ f.razao_social }}
+              {% if f.nome_fantasia and f.nome_fantasia != f.razao_social %}
+              <span class="block text-[10px] text-slate-500 font-normal normal-case">{{ f.nome_fantasia }}</span>
+              {% endif %}
+            </td>
+            <td class="p-5 font-mono text-xs text-slate-400">{{ f.cnpj or f.cpf or '—' }}</td>
+            <td class="p-5 text-slate-400 text-xs">{{ f.telefone or f.celular or '—' }}</td>
+            <td class="p-5 text-slate-400 text-xs">{{ f.cidade or '—' }}{% if f.estado %}/{{ f.estado }}{% endif %}</td>
+            <td class="p-5 text-xs text-slate-400">{{ f.prazo_pagamento or 30 }}d</td>
+            <td class="p-5">
+              {% if f.status == 'ativo' %}<span class="bg-green-500/10 text-green-400 border border-green-500/20 px-3 py-1 rounded-full text-[10px] font-bold">● Ativo</span>
+              {% else %}<span class="bg-slate-500/10 text-slate-500 border border-slate-500/20 px-3 py-1 rounded-full text-[10px] font-bold">○ Inativo</span>{% endif %}
+            </td>
+            <td class="p-5 text-slate-600 hover:text-sky-400 text-lg text-right">→</td>
+          </tr>
+          {% endfor %}
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>document.addEventListener('DOMContentLoaded',()=>initBusca('/fornecedores'));</script>
+<script>
+// Preservar e restaurar busca ao navegar
+(function(){
+  var q = document.getElementById('busca');
+  var urlQ = new URLSearchParams(window.location.search).get('q');
+  var saved = sessionStorage.getItem('busca_fornecedores') || '';
+
+  // Sincronizar URL com storage
+  if (urlQ !== null) {
+    sessionStorage.setItem('busca_fornecedores', urlQ);
+  } else if (saved.length >= 3 && q) {
+    // Voltando de um item sem ?q= — restaurar e buscar
+    q.value = saved;
+    q.closest('form').submit();
+    return;
+  }
+
+  // Salvar ao clicar em qualquer linha/link de item
+  document.querySelectorAll('tr[onclick], a[href*="/fornecedores/"]').forEach(function(el){
+    el.addEventListener('click', function(){
+      sessionStorage.setItem('busca_fornecedores', (q ? q.value : '') || '');
+    });
+  });
+})();
+</script>
+{% endblock %}

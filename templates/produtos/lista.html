@@ -1,0 +1,202 @@
+{% extends "base.html" %}
+{% block title %}Produtos{% endblock %}
+{% block header_title %}Produtos{% endblock %}
+{% block header_sub %}{% endblock %}
+
+{% block head %}
+<style>
+#main-area { overflow: hidden !important; }
+.res-table  { width:100%; }
+.res-mobile { display: none; }
+@media (max-width: 768px) {
+  .res-table  { display: none; }
+  .res-mobile { display: block; }
+  .card-prod {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 16px;
+    padding: 14px 16px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: background .15s;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .card-prod:active { background: rgba(56,189,248,0.06); }
+  .card-prod-body { flex: 1; min-width: 0; }
+  .card-prod-nome { font-size:.85rem; font-weight:700; color:#e2e8f0; text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .card-prod-sub  { font-size:.7rem; color:#64748b; margin-top:3px; display:flex; gap:10px; flex-wrap:wrap; }
+  .card-prod-preco { color:#4ade80; font-weight:700; font-size:.8rem; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="display:flex;flex-direction:column;height:100%;gap:0;">
+
+  <div class="flex gap-3 mb-5">
+    <div class="relative flex-1">
+      <input type="text" id="busca" autocomplete="off"
+             placeholder="Buscar por nome, SKU, categoria, marca..."
+             class="glass bg-transparent w-full pl-12 pr-6 py-4 rounded-2xl outline-none focus:ring-1 ring-sky-500/50 text-sm">
+      <svg class="w-5 h-5 absolute left-4 top-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+      </svg>
+      <span id="busca-status" style="position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:9px;color:#475569;text-transform:uppercase;letter-spacing:.05em;"></span>
+    </div>
+    <a href="{{ url_for('produto_novo') }}"
+       class="flex-shrink-0 flex items-center gap-2 bg-sky-500 hover:bg-sky-400 text-white px-6 rounded-2xl text-[10px] font-bold uppercase tracking-widest transition-all shadow-[0_0_20px_rgba(56,189,248,0.15)]">
+      + Novo Produto
+    </a>
+  </div>
+
+  <div style="flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column;" class="w-full glass rounded-[2rem]">
+    <div class="res-table" style="flex:1;min-height:0;overflow-y:auto;">
+      <table class="w-full text-left text-sm">
+        <thead style="background:#0d1b2e;position:sticky;top:0;z-index:1;" class="text-slate-500 uppercase text-[10px] tracking-widest">
+          <tr>
+            <th class="p-5">SKU</th>
+            <th class="p-5">Nome</th>
+            <th class="p-5">Categoria</th>
+            <th class="p-5">Marca</th>
+            <th class="p-5 text-right">Preço Venda</th>
+            <th class="p-5 text-right">Estoque</th>
+            <th class="p-5">Status</th>
+            <th class="p-5 w-8"></th>
+          </tr>
+        </thead>
+        <tbody id="tbody-desktop" class="divide-y divide-white/5"></tbody>
+      </table>
+    </div>
+    <div class="res-mobile" id="cards-mobile" style="flex:1;overflow-y:auto;padding:12px;"></div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const PROD_VER  = "{{ url_for('produto_ver', pid=0) }}".replace('/0','');
+const STORAGE_KEY = 'busca_produtos';
+
+let _cache = null;
+let _timer = null;
+let _q     = '';
+
+async function carregarCache() {
+  if (_cache) return _cache;
+  document.getElementById('busca-status').textContent = 'carregando...';
+  const r = await fetch('/api/produtos-lista');
+  _cache = await r.json();
+  document.getElementById('busca-status').textContent = '';
+  return _cache;
+}
+
+function fmtMoeda(v) {
+  const n = parseFloat(v) || 0;
+  return 'R$ ' + n.toFixed(2).replace('.',',').replace(/\B(?=(\d{3})+(?!\d))/g,'.');
+}
+function fmtEst(v) {
+  const n = parseFloat(v) || 0;
+  return n % 1 === 0 ? n.toFixed(0) : n.toFixed(3).replace('.',',');
+}
+function statusBadge(s) {
+  return s === 'ativo'
+    ? '<span style="background:rgba(74,222,128,0.1);color:#4ade80;border:1px solid rgba(74,222,128,0.2);padding:2px 8px;border-radius:999px;font-size:9px;font-weight:700;">ativo</span>'
+    : '<span style="background:rgba(248,113,113,0.1);color:#f87171;border:1px solid rgba(248,113,113,0.2);padding:2px 8px;border-radius:999px;font-size:9px;font-weight:700;">'+(s||'—')+'</span>';
+}
+
+function buscarLocal(q) {
+  if (!_cache || q.length < 2) return [];
+  const qu = q.toUpperCase();
+  return _cache.filter(p =>
+    (p.nome||'').toUpperCase().includes(qu) ||
+    (p.sku||'').toUpperCase().includes(qu) ||
+    (p.categoria||'').toUpperCase().includes(qu) ||
+    (p.marca||'').toUpperCase().includes(qu)
+  ).slice(0, 100);
+}
+
+function renderResultados(lista, q) {
+  const tbody = document.getElementById('tbody-desktop');
+  const cards = document.getElementById('cards-mobile');
+  const vazio = '<tr><td colspan="8" class="p-20 text-center opacity-30 italic text-[10px] uppercase tracking-widest">Digite para buscar produtos</td></tr>';
+  const nada  = `<tr><td colspan="8" class="p-20 text-center text-rose-500 font-bold text-[10px] uppercase tracking-widest">Nenhum resultado para "${q}"</td></tr>`;
+
+  if (!q || q.length < 2) { tbody.innerHTML = vazio; cards.innerHTML=''; return; }
+  if (!lista.length) { tbody.innerHTML = nada; cards.innerHTML='<p style="padding:40px;text-align:center;color:#f87171;font-size:10px;font-weight:700;text-transform:uppercase;">Nenhum resultado</p>'; return; }
+
+  tbody.innerHTML = lista.map(p => {
+    const url = PROD_VER + '/' + p.id;
+    const alerta = parseFloat(p.qtd_estoque||0) <= parseFloat(p.estoque_minimo||0);
+    const estCor = alerta ? 'color:#f87171' : 'color:#4ade80';
+    return `<tr class="hover:bg-white/5 transition-colors cursor-pointer"
+        onclick="sessionStorage.setItem('${STORAGE_KEY}','${q.replace(/'/g,"\\'")}');window.location='${url}'">
+      <td class="p-5 font-mono text-sky-400 text-xs">${p.sku||'—'}</td>
+      <td class="p-5 font-bold text-slate-200 uppercase">${p.nome||'—'}</td>
+      <td class="p-5 text-slate-400 text-xs uppercase">${p.categoria||'—'}</td>
+      <td class="p-5 text-slate-400 text-xs">${p.marca||'—'}</td>
+      <td class="p-5 text-right font-mono text-green-400 text-xs font-bold">${fmtMoeda(p.preco_venda)}</td>
+      <td class="p-5 text-right font-mono text-xs font-bold" style="${estCor}">${fmtEst(p.qtd_estoque)}</td>
+      <td class="p-5">${statusBadge(p.status)}</td>
+      <td class="p-5 text-right text-slate-600">→</td>
+    </tr>`;
+  }).join('');
+
+  cards.innerHTML = lista.map(p => {
+    const url   = PROD_VER + '/' + p.id;
+    const alerta = parseFloat(p.qtd_estoque||0) <= parseFloat(p.estoque_minimo||0);
+    const estCor = alerta ? '#f87171' : '#4ade80';
+    return `<div class="card-prod"
+        onclick="sessionStorage.setItem('${STORAGE_KEY}','${q.replace(/'/g,"\\'")}');window.location='${url}'">
+      <div style="width:36px;height:36px;background:rgba(56,189,248,0.08);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+        <svg width="16" height="16" fill="none" stroke="#38bdf8" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+      </div>
+      <div class="card-prod-body">
+        <div class="card-prod-nome">${p.nome||'—'}</div>
+        <div class="card-prod-sub">
+          <span style="font-family:monospace;color:#38bdf8;">${p.sku||''}</span>
+          <span>${p.categoria||''}</span>
+          <span class="card-prod-preco">${fmtMoeda(p.preco_venda)}</span>
+          <span style="color:${estCor};">Est: ${fmtEst(p.qtd_estoque)}</span>
+        </div>
+      </div>
+      <div class="card-cli-arr">›</div>
+    </div>`;
+  }).join('');
+}
+
+const inp    = document.getElementById('busca');
+const status = document.getElementById('busca-status');
+
+inp.addEventListener('input', function() {
+  clearTimeout(_timer);
+  const q = this.value.trim();
+  _q = q;
+  if (q.length < 2) { renderResultados([], q); status.textContent=''; return; }
+  status.textContent = '...';
+  _timer = setTimeout(async () => {
+    await carregarCache();
+    if (_q !== q) return;
+    const res = buscarLocal(q);
+    status.textContent = res.length ? res.length+' result.' : '';
+    renderResultados(res, q);
+  }, 300);
+});
+
+window.addEventListener('DOMContentLoaded', async () => {
+  await carregarCache();
+  const saved = sessionStorage.getItem(STORAGE_KEY) || '';
+  if (saved.length >= 2) {
+    inp.value = saved;
+    const res = buscarLocal(saved);
+    status.textContent = res.length ? res.length+' result.' : '';
+    renderResultados(res, saved);
+  } else {
+    renderResultados([], '');
+  }
+  inp.focus();
+  inp.setSelectionRange(inp.value.length, inp.value.length);
+});
+</script>
+{% endblock %}
